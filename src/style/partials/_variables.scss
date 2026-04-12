@@ -1,0 +1,35 @@
+/* COLORS */
+
+/* TEXT */
+$text-color: #947b6e;
+
+$text-violet: #8472ac;
+
+/* BACKGROUND */
+
+$bg-white: white;
+
+$bg-light: #f5f1ef; // sfondo generale
+
+$footer-bg: #282433;
+
+$bg-about-me: #654456;
+
+$logo-color: #92607c;
+
+$dark: #313030;
+
+/* FONT SIZE */
+
+$title: 6rem; // titoli principali grandi
+$subtitle: 2.8rem; // sottotitolo per bottoni e sottotitoli
+$text-size: 1rem; // testo normale
+$headerText: 1.2rem; // testo header
+
+// altezza header
+.header {
+  margin-top: 60px;
+  @media (min-width: 768px) {
+    margin-top: 80px;
+  }
+}
