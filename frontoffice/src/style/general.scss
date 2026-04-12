@@ -1,0 +1,151 @@
+@use "/src/style/partials/variables" as *;
+@import "/node_modules/bootstrap/scss/bootstrap";
+
+/* === THEME VARS GLOBALI === */
+:root {
+  --header-bg: #8472ac;
+  --header-fg: #ffffff;
+  --header-underline: #ffffff;
+  --brand-violet: #5b3c88;
+  --cursor-default: url('/src/assets/img/cursor-daisy.svg') 2 38, auto;
+  --cursor-pointer: url('/src/assets/img/cursor-daisy-pointer.svg') 2 42, pointer;
+}
+
+html.header--light {
+  --header-bg: #ffffff;
+  --header-fg: #5b3c88;
+  --header-underline: #5b3c88;
+}
+
+html {
+  background-color: $footer-bg;
+}
+
+body {
+  // cursor: url('/src/assets/img/cursor-daisy.svg') 2 38, auto;
+  font-family: "Work Sans", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+
+  h1, h2, h3, h4 {
+    font-family: "Young Serif", serif;
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  &::-webkit-scrollbar {
+    width: 12px;
+    height: 10px;
+    background: white;
+  }
+  &::-webkit-scrollbar-track {
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb {
+    width: 10px;
+    background: $text-violet;
+    border-radius: 10px;
+  }
+}
+
+/* Cursore fiore pointer statico — disattivato
+a,
+button,
+[role="button"],
+.btn,
+[type="submit"],
+[data-cursor-pointer] {
+  &, &:hover {
+    cursor: url('/src/assets/img/cursor-daisy-pointer.svg') 2 42, pointer !important;
+  }
+}
+
+* {
+  &[style*="cursor: pointer"],
+  &[style*="cursor:pointer"] {
+    cursor: url('/src/assets/img/cursor-daisy-pointer.svg') 2 42, pointer !important;
+  }
+}
+
+html.cursor-blooming,
+html.cursor-blooming * {
+  cursor: none !important;
+}
+*/
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Focus-visible globale per accessibilità da tastiera */
+:focus-visible {
+  outline: 2px solid var(--brand-violet, #5b3c88);
+  outline-offset: 2px;
+}
+
+/* Nasconde outline su click mouse, visibile solo da tastiera */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+ul {
+  list-style-type: none;
+}
+
+/* Mobile-first: base = mobile, poi scale up */
+.title-custom {
+  font-size: 2.5rem;
+
+  @media (min-width: 768px) {
+    font-size: 4rem;
+  }
+  @media (min-width: 1024px) {
+    font-size: $title;
+  }
+}
+
+.subtitle-custom {
+  font-size: 1.6rem;
+
+  @media (min-width: 768px) {
+    font-size: 2.2rem;
+  }
+  @media (min-width: 1024px) {
+    font-size: $subtitle;
+  }
+}
+
+.text-custom {
+  font-size: $text-size;
+}
+
+.header-text {
+  font-size: $headerText;
+  letter-spacing: 1.6px;
+}
+
+/* ── Scroll reveal animation ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

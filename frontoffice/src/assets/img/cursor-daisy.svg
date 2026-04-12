@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+  <!-- Stelo inclinato (come il mouse, punta in alto a sinistra) -->
+  <path d="M12 18 Q6 28 2 38" stroke="#5a9e4b" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Foglia destra -->
+  <path d="M8 27 Q13 26 10 31" stroke="#5a9e4b" stroke-width="1.2" fill="#6db85a" stroke-linecap="round"/>
+  <!-- Foglia sinistra -->
+  <path d="M5 33 Q1 30 3 35" stroke="#5a9e4b" stroke-width="1.2" fill="#6db85a" stroke-linecap="round"/>
+  <!-- Petali bianchi -->
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(0,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(51.4,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(102.8,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(154.3,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(205.7,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(257.1,14,12)"/>
+  <ellipse cx="14" cy="6" rx="3" ry="5" fill="#fff" stroke="#d4c8e8" stroke-width=".5" transform="rotate(308.6,14,12)"/>
+  <!-- Centro -->
+  <circle cx="14" cy="12" r="4.2" fill="#f0a840"/>
+  <circle cx="14" cy="12" r="2.6" fill="#e8943a"/>
+  <circle cx="14" cy="12" r=".8" fill="#5b3c88"/>
+</svg>
