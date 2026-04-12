@@ -1,12 +1,6 @@
 [build]
-  command = "cd .. && npm install && npm run build --workspace=backoffice"
+  command = "cd .. && npm install && npm run build --workspace=frontoffice"
   publish = "dist"
-
-[[redirects]]
-  from = "/sanctum/*"
-  to = "https://api.letiziaragionedesign.com/sanctum/:splat"
-  status = 200
-  force = true
 
 [[redirects]]
   from = "/api/*"
