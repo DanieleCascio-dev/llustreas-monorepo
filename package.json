@@ -1,0 +1,9 @@
+{
+  "name": "illustreas-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontoffice",
+    "backoffice",
+    "packages/*"
+  ]
+}
