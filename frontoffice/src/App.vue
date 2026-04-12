@@ -30,5 +30,5 @@ function onLoaderComplete() {
 
 <style lang="scss">
 @use "./style/general.scss" as *;
-@import "/node_modules/@fortawesome/fontawesome-free/css/all.css";
+@import "@fortawesome/fontawesome-free/css/all.css";
 </style>
