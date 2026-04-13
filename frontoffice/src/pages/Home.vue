@@ -1,6 +1,7 @@
 <script setup>
 /*** PAGINA HOME — carica dati API prima di mostrare il contenuto ***/
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useProjectStore } from '../store'
 import AppHero from "../components/AppHero.vue";
 import ProjectsPreview from "../components/ProjectsPreview.vue";
@@ -11,7 +12,25 @@ import AboutMePreview from "../components/AboutMePreview.vue";
 import FullPageLoader from "../components/FullPageLoader.vue";
 
 const store = useProjectStore()
+const route = useRoute()
 const loading = ref(true)
+
+function scrollAboutIntoView() {
+  if (route.hash !== '#about-me') return
+  const el = document.getElementById('about-me')
+  if (!el) return
+  const headerH = document.querySelector('nav.nav-fixed')?.clientHeight ?? 80
+  const y = el.getBoundingClientRect().top + window.scrollY - headerH
+  window.scrollTo({ top: y, left: 0, behavior: 'smooth' })
+}
+
+function onFullPageLoaderHidden() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      scrollAboutIntoView()
+    })
+  })
+}
 
 const galleryComponent = computed(() =>
   store.galleryPreviewMode === 'grid' ? GalleryPreview : GalleryPreviewCarousel
@@ -78,7 +97,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <FullPageLoader v-model="loading" />
+  <FullPageLoader v-model="loading" @hidden="onFullPageLoaderHidden" />
   <div v-if="!loading" class="home-container">
     <AppHero />
     <ProjectsPreview/>
@@ -94,7 +113,7 @@ onBeforeUnmount(() => {
       />
       <component :is="galleryComponent" />
     </div>
-    <div ref="aboutWrapRef" class="about-section-wrap">
+    <div id="about-me" ref="aboutWrapRef" class="about-section-wrap">
       <AboutMePreview/>
       <img
         src="../assets/img/backgrounds/4_FIORE_SINGOLO_01.png"

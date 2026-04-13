@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -59,7 +59,8 @@ const handleGalleryClick = () => {
 const scrollToAboutMe = async () => {
   closeNav()
   if (route.name === 'home') {
-    smoothScrollTo('#about-me')
+    await nextTick()
+    requestAnimationFrame(() => smoothScrollTo('#about-me'))
   } else {
     await router.push({ path: '/', hash: '#about-me' })
   }

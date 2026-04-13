@@ -3,6 +3,9 @@ import { createRouter, createWebHistory } from "vue-router";
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior(to, from, savedPosition) {
+    if (to.hash === '#about-me') {
+      return { top: 0, behavior: 'instant' }
+    }
     if (to.hash) {
       return new Promise((resolve) => {
         const check = () => {

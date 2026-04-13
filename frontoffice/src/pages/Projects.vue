@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -42,28 +41,26 @@ const scrollToId = (id: string) => {
     >
       <template #header>
         <div class="header-content pt-5">
-          <div
-            class="row justify-content-center mb-5 w-75 d-flex flex-column align-items-center gap-4"
-          >
-            <div>
+          <div class="projects-header-stack">
+            <div class="projects-header-title">
               <img
                 src="../assets/img/projectText/1_SCRITTA-19.svg"
-                alt="text"
+                alt="Progetti"
                 class="text-img-1 d-none d-md-block"
               />
               <img
                 src="../assets/img/projectText/1_SCRITTA-20.svg"
-                alt="text"
+                alt="Progetti"
                 class="text-img-2 d-md-none"
               />
             </div>
             <div
               @click.prevent="scrollToId('projects-gallery')"
-              class="col-3 col-md-2 col-xl-1"
+              class="projects-scroll-cta"
             >
               <img
                 src="../assets/img/projectText/1_SCRITTA-21.svg"
-                alt="text"
+                alt="Scorri ai progetti"
                 class="button-img"
               />
             </div>
@@ -104,6 +101,52 @@ const scrollToId = (id: string) => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+}
+
+.projects-header-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2rem;
+  width: min(1420px, 98vw);
+  max-width: 100%;
+  margin-inline: auto;
+  margin-bottom: 3rem;
+  box-sizing: border-box;
+  padding-inline: clamp(12px, 3vw, 32px);
+}
+
+.projects-header-title {
+  width: 100%;
+
+  .text-img-1,
+  .text-img-2 {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}
+
+.projects-scroll-cta {
+  align-self: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 0;
+
+  .button-img {
+    display: block;
+    width: 104px;
+    height: auto;
+
+    @media (min-width: 768px) {
+      width: 140px;
+    }
+
+    @media (min-width: 1200px) {
+      width: 168px;
+    }
+  }
 }
 
 .flower {
