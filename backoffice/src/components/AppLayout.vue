@@ -68,5 +68,5 @@ async function handleLogout() {
 .sidebar-user{font-size:13px;color:var(--text-sidebar);margin-bottom:8px}
 .sidebar-logout{width:100%;justify-content:center;color:var(--text-sidebar);border-color:rgba(255,255,255,.15)}
 .sidebar-logout:hover{color:#fff;border-color:rgba(255,255,255,.3)}
-.main{flex:1;margin-left:var(--sidebar-w);padding:32px}
+.main{flex:1;margin-left:var(--sidebar-w);padding:32px;min-width:0;overflow-x:hidden}
 </style>

@@ -559,11 +559,9 @@ function onSlotDragEnd() {
 .device-btn:hover{color:var(--text);background:var(--bg-main)}
 .device-btn.active{color:var(--primary);background:rgba(99,102,241,.1)}
 
-.fo-preview-frame{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#f8f8fa;transition:max-width .3s ease}
+.fo-preview-frame{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#f8f8fa;transition:max-width .3s ease;contain:inline-size}
 .frame--desktop{max-width:100%}
 .frame--mobile{max-width:390px;margin:0 auto}
-
-.fo-preview-viewport{overflow:hidden}
 
 .mgmt-title{margin-bottom:16px}
 .page-desc{color:var(--text-light);font-size:14px;margin-bottom:24px}
