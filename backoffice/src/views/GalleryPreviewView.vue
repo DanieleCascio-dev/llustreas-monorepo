@@ -1,14 +1,16 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { galleryPreview, gallery } from '../services/api'
+import { galleryPreview, gallery, settings } from '../services/api'
 import { uploadImage } from '../services/cloudinary'
 import { useToast } from '../composables/useToast'
 import CloudinaryBrowser from '../components/CloudinaryBrowser.vue'
+import { GalleryPreviewCarousel, GalleryPreviewGrid } from '@illustreas/shared-ui'
 
 const toast = useToast()
 
 const images = ref([])
 const loading = ref(true)
+const previewMode = ref('carousel')
 const uploading = ref(false)
 const recentlyRemoved = ref([])
 
@@ -24,6 +26,17 @@ const targetSlot = ref(null)
 const canAdd = computed(() => images.value.length < 9)
 const previewSrcs = computed(() => new Set(images.value.map(i => i.src)))
 
+const previewComponent = computed(() =>
+  previewMode.value === 'grid' ? GalleryPreviewGrid : GalleryPreviewCarousel
+)
+
+const previewImages = computed(() =>
+  images.value
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((img) => ({ id: img.id, url: img.src, title: img.title }))
+)
+
 const slotMap = computed(() => {
   const map = Array(9).fill(null)
   images.value.forEach(img => {
@@ -32,9 +45,13 @@ const slotMap = computed(() => {
   return map
 })
 
-onMounted(() => {
+onMounted(async () => {
   load()
   document.addEventListener('click', closeSlotMenu)
+  try {
+    const { data } = await settings.get('gallery_preview_mode')
+    if (data.value) previewMode.value = data.value
+  } catch { /* keep default */ }
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeSlotMenu)
@@ -346,6 +363,20 @@ function onSlotDragEnd() {
     <div v-if="loading" class="card" style="text-align:center;padding:48px">Caricamento...</div>
 
     <template v-else>
+      <!-- ===== FRONTOFFICE PREVIEW ===== -->
+      <div v-if="previewImages.length" class="fo-preview-wrap">
+        <h2 class="section-title">Anteprima frontoffice</h2>
+        <component
+          :is="previewComponent"
+          :images="previewImages"
+          section-radius="12px"
+          marquee-speed="50s"
+        />
+      </div>
+
+      <!-- ===== MANAGEMENT ===== -->
+      <h2 v-if="previewImages.length" class="section-title mgmt-title">Gestione slot</h2>
+
       <!-- Fixed 9-slot grid -->
       <div class="preview-grid">
         <div
@@ -491,6 +522,8 @@ function onSlotDragEnd() {
 </template>
 
 <style scoped>
+.fo-preview-wrap{margin-bottom:32px}
+.mgmt-title{margin-bottom:16px}
 .page-desc{color:var(--text-light);font-size:14px;margin-bottom:24px}
 .counter{font-size:14px;font-weight:600;color:var(--text-light);background:var(--bg-card);padding:4px 12px;border-radius:var(--radius);border:1px solid var(--border)}
 

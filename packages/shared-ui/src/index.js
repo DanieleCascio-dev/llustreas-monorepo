@@ -1,2 +1,5 @@
 export { default as InstagramCarousel } from './components/InstagramCarousel.vue'
+export { default as GalleryPreviewCarousel } from './components/GalleryPreviewCarousel.vue'
+export { default as GalleryPreviewGrid } from './components/GalleryPreviewGrid.vue'
 export { useInstagramEmbed } from './composables/useInstagramEmbed.js'
+export { cloudinaryThumb } from './utils/cloudinary.js'
