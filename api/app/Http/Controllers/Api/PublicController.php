@@ -42,16 +42,28 @@ class PublicController extends Controller
             ->orderBy('order')
             ->get();
 
-        $columns = [];
+        $mapFn = fn ($img) => [
+            'id' => $img->id,
+            'src' => $img->src,
+            'title' => $img->title,
+        ];
+
+        $desktop = [];
+        $desktopImages = $images->where('layout', 'desktop');
         for ($i = 0; $i < 3; $i++) {
-            $columns[$i] = $images->where('column_index', $i)->values()->map(fn ($img) => [
-                'id' => $img->id,
-                'src' => $img->src,
-                'title' => $img->title,
-            ]);
+            $desktop[$i] = $desktopImages->where('column_index', $i)->values()->map($mapFn);
         }
 
-        return response()->json($columns);
+        $mobile = [];
+        $mobileImages = $images->where('layout', 'mobile');
+        for ($i = 0; $i < 2; $i++) {
+            $mobile[$i] = $mobileImages->where('column_index', $i)->values()->map($mapFn);
+        }
+
+        return response()->json([
+            'desktop' => $desktop,
+            'mobile' => $mobile,
+        ]);
     }
 
     public function projectsPreview(): JsonResponse

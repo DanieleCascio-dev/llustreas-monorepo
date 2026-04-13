@@ -2,11 +2,15 @@
 import { ref, onMounted } from 'vue'
 import { settings } from '../services/api'
 import { useToast } from '../composables/useToast'
+import { useKeyboardSave } from '../composables/useKeyboardSave'
 
 const toast = useToast()
 const loading = ref(true)
+const saving = ref(false)
 
 const galleryPreviewMode = ref('carousel')
+const galleryMarqueeSpeed = ref(50)
+const instagramMarqueeSpeed = ref(80)
 
 const modes = [
   { value: 'carousel', label: 'Carosello', desc: 'Scorrimento orizzontale continuo con effetto marquee' },
@@ -15,34 +19,52 @@ const modes = [
 
 onMounted(async () => {
   try {
-    const { data } = await settings.get('gallery_preview_mode')
-    if (data.value) galleryPreviewMode.value = data.value
-  } catch {
-    // se non esiste ancora il setting, resta il default
-  } finally {
-    loading.value = false
-  }
+    const results = await Promise.allSettled([
+      settings.get('gallery_preview_mode'),
+      settings.get('gallery_preview_marquee_speed'),
+      settings.get('instagram_marquee_speed'),
+    ])
+    if (results[0].status === 'fulfilled' && results[0].value.data.value)
+      galleryPreviewMode.value = results[0].value.data.value
+    if (results[1].status === 'fulfilled' && results[1].value.data.value)
+      galleryMarqueeSpeed.value = Number(results[1].value.data.value) || 50
+    if (results[2].status === 'fulfilled' && results[2].value.data.value)
+      instagramMarqueeSpeed.value = Number(results[2].value.data.value) || 80
+  } catch { /* keep defaults */ }
+  finally { loading.value = false }
 })
 
 async function save() {
+  if (saving.value) return
+  saving.value = true
   try {
-    await settings.update('gallery_preview_mode', galleryPreviewMode.value)
-    toast.success('Impostazione salvata')
+    await Promise.all([
+      settings.update('gallery_preview_mode', galleryPreviewMode.value),
+      settings.update('gallery_preview_marquee_speed', galleryMarqueeSpeed.value),
+      settings.update('instagram_marquee_speed', instagramMarqueeSpeed.value),
+    ])
+    toast.success('Impostazioni salvate')
   } catch {
     toast.error('Errore nel salvataggio')
+  } finally {
+    saving.value = false
   }
 }
+
+useKeyboardSave(save)
 </script>
 
 <template>
   <div>
     <div class="page-header">
       <h1>Impostazioni</h1>
+      <p class="page-subtitle">Ctrl+S / ⌘S per salvare rapidamente</p>
     </div>
 
     <div v-if="loading" class="loading-text">Caricamento…</div>
 
     <div v-else class="settings-list">
+      <!-- Gallery Preview Mode -->
       <div class="card setting-card">
         <h2 class="setting-title">Gallery Preview — Homepage</h2>
         <p class="setting-desc">Scegli il componente da utilizzare nella sezione "Illustrazioni" della homepage.</p>
@@ -66,16 +88,43 @@ async function save() {
             </div>
           </label>
         </div>
+      </div>
 
-        <div class="setting-actions">
-          <button class="btn btn--primary" @click="save">Salva</button>
+      <!-- Carousel Speeds -->
+      <div class="card setting-card">
+        <h2 class="setting-title">Velocità caroselli</h2>
+        <p class="setting-desc">Controlla la velocità di scorrimento delle sezioni marquee nella homepage.</p>
+
+        <div class="speed-grid">
+          <label class="speed-field">
+            <span class="speed-field-label">Gallery Preview</span>
+            <div class="speed-field-row">
+              <input type="range" v-model.number="galleryMarqueeSpeed" min="20" max="200" step="5" class="speed-range" />
+              <span class="speed-field-value">{{ galleryMarqueeSpeed }}s</span>
+            </div>
+          </label>
+          <label class="speed-field">
+            <span class="speed-field-label">Instagram</span>
+            <div class="speed-field-row">
+              <input type="range" v-model.number="instagramMarqueeSpeed" min="20" max="200" step="5" class="speed-range" />
+              <span class="speed-field-value">{{ instagramMarqueeSpeed }}s</span>
+            </div>
+          </label>
         </div>
+      </div>
+
+      <!-- Save -->
+      <div class="setting-actions">
+        <button class="btn btn--primary" :disabled="saving" @click="save">
+          {{ saving ? 'Salvataggio…' : 'Salva tutto' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.page-subtitle { font-size: 13px; color: var(--text-light); margin-top: 4px; }
 .loading-text { color: var(--text-light); padding: 24px 0; }
 
 .settings-list { display: flex; flex-direction: column; gap: 20px; }
@@ -111,5 +160,12 @@ async function save() {
 .mode-label { font-weight: 600; font-size: 15px; }
 .mode-desc { font-size: 13px; color: var(--text-light); }
 
-.setting-actions { margin-top: 20px; display: flex; justify-content: flex-end; }
+.speed-grid { display: flex; flex-direction: column; gap: 16px; }
+.speed-field { display: flex; flex-direction: column; gap: 4px; }
+.speed-field-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.speed-field-row { display: flex; align-items: center; gap: 10px; }
+.speed-range { flex: 1; accent-color: var(--primary); cursor: pointer; }
+.speed-field-value { font-size: 13px; font-weight: 600; color: var(--text-light); min-width: 40px; text-align: right; }
+
+.setting-actions { display: flex; justify-content: flex-end; }
 </style>

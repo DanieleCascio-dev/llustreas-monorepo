@@ -41,14 +41,24 @@ let minTimerId: number | undefined
 let minElapsed = false
 
 // Scroll lock non-invasivo: usiamo una classe dedicata
-const BODY_LOCK_CLASS = 'overflow-hidden-loader'
+let savedScrollY = 0
 const lockBodyScroll = () => {
   if (!props.lockScroll) return
-  document?.body?.classList?.add(BODY_LOCK_CLASS)
+  savedScrollY = window.scrollY
+  document.body.style.position = 'fixed'
+  document.body.style.top = `-${savedScrollY}px`
+  document.body.style.left = '0'
+  document.body.style.right = '0'
+  document.body.style.overflow = 'hidden'
 }
 const unlockBodyScroll = () => {
   if (!props.lockScroll) return
-  document?.body?.classList?.remove(BODY_LOCK_CLASS)
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.left = ''
+  document.body.style.right = ''
+  document.body.style.overflow = ''
+  window.scrollTo(0, savedScrollY)
 }
 
 // Mostra overlay e avvia timer di durata minima
@@ -181,9 +191,3 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<!-- Stile globale per il lock scroll di questo componente (no conflitti col tuo menu) -->
-<style lang="scss">
-:global(body.overflow-hidden-loader) {
-  overflow: hidden;
-}
-</style>

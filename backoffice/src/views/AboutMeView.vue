@@ -2,9 +2,14 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { settings } from '../services/api'
 import { useToast } from '../composables/useToast'
+import { useConfirmModal } from '../composables/useConfirmModal'
+import { useKeyboardSave } from '../composables/useKeyboardSave'
 import CloudinaryBrowser from '../components/CloudinaryBrowser.vue'
+import { AboutMePreview } from '@illustreas/shared-ui'
 
 const toast = useToast()
+const modal = useConfirmModal()
+useKeyboardSave(() => save())
 
 const loading = ref(true)
 const saving = ref(false)
@@ -104,7 +109,12 @@ function addParagraph() {
   })
 }
 
-function removeParagraph(idx) {
+async function removeParagraph(idx) {
+  const ok = await modal.open({
+    title: 'Rimuovi paragrafo',
+    message: `Vuoi eliminare il paragrafo ${idx + 1}?`,
+  })
+  if (!ok) return
   paragraphs.value.splice(idx, 1)
   if (activeParagraphIdx.value === idx) activeParagraphIdx.value = null
 }
@@ -179,18 +189,20 @@ function addTag() {
   tags.value.push(t)
   newTag.value = ''
 }
-function removeTag(idx) { tags.value.splice(idx, 1) }
+async function removeTag(idx) {
+  const ok = await modal.open({
+    title: 'Rimuovi tag',
+    message: `Vuoi eliminare il tag "${tags.value[idx]}"?`,
+  })
+  if (!ok) return
+  tags.value.splice(idx, 1)
+}
 
-const marqueeText = computed(() => {
-  if (!tags.value.length) return ''
-  return tags.value.join(' · ') + ' · '
-})
-
-const dividerStyle = computed(() => ({
-  width: divider.value.thickness + 'px',
-  height: divider.value.height + '%',
-  background: divider.value.color,
-  opacity: divider.value.opacity / 100,
+const previewDivider = computed(() => ({
+  thickness: divider.value.thickness,
+  color: divider.value.color,
+  opacity: divider.value.opacity,
+  height: divider.value.height,
 }))
 </script>
 
@@ -203,9 +215,48 @@ const dividerStyle = computed(() => ({
 
     <div v-if="loading" class="loading-text">Caricamento…</div>
 
-    <div v-else class="aboutme-editor">
-      <!-- ═══ Colonna sinistra: editor ═══ -->
-      <div class="editor-col">
+    <template v-else>
+      <!-- ===== ANTEPRIMA FRONTOFFICE ===== -->
+      <div class="preview-wrap">
+        <div class="preview-header">
+          <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewMode === 'desktop' }"
+              @click="previewMode = 'desktop'"
+              title="Desktop" aria-label="Vista desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewMode === 'mobile' }"
+              @click="previewMode = 'mobile'"
+              title="Mobile" aria-label="Vista mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="preview-frame" :class="'frame--' + previewMode">
+          <AboutMePreview
+            :image="image"
+            :title="title"
+            :paragraphs="paragraphs"
+            :tags="tags"
+            :divider="previewDivider"
+            :title-color="titleColor"
+            :text-color="textColor"
+            :force-mode="previewMode"
+            section-radius="0"
+          />
+        </div>
+      </div>
+
+      <!-- ===== EDITOR ===== -->
+      <div class="editor-section-wrap">
+        <h2 class="section-title mgmt-title">Gestione contenuto</h2>
 
         <!-- Immagine + Titolo -->
         <div class="card editor-section">
@@ -234,7 +285,6 @@ const dividerStyle = computed(() => ({
           <h2 class="section-title">Stile</h2>
 
           <div class="style-grid">
-            <!-- Colori -->
             <label class="control-group">
               <span class="control-label">Colore titolo</span>
               <div class="control-row">
@@ -250,7 +300,6 @@ const dividerStyle = computed(() => ({
               </div>
             </label>
 
-            <!-- Separatore -->
             <label class="control-group">
               <span class="control-label">Separatore colore</span>
               <div class="control-row">
@@ -305,15 +354,15 @@ const dividerStyle = computed(() => ({
               @dragend="onPDragEnd"
             >
               <div class="paragraph-header">
-                <span class="paragraph-drag" title="Trascina per riordinare">⠿</span>
+                <span class="paragraph-drag" title="Trascina per riordinare" aria-label="Trascina per riordinare">⠿</span>
                 <span class="paragraph-label">Paragrafo {{ idx + 1 }}</span>
                 <button
                   class="paragraph-bold-btn"
                   :class="{ 'paragraph-bold-btn--active': activeParagraphIdx === idx }"
-                  title="Grassetto (Ctrl+B)"
+                  title="Grassetto (Ctrl+B)" aria-label="Grassetto"
                   @mousedown.prevent="toggleBold(idx)"
                 ><strong>B</strong></button>
-                <button class="paragraph-remove-btn" @click="removeParagraph(idx)" title="Rimuovi">✕</button>
+                <button class="paragraph-remove-btn" @click="removeParagraph(idx)" title="Rimuovi paragrafo" aria-label="Rimuovi paragrafo">✕</button>
               </div>
               <div
                 :ref="el => paragraphRefs[idx] = el"
@@ -360,75 +409,7 @@ const dividerStyle = computed(() => ({
           </button>
         </div>
       </div>
-
-      <!-- ═══ Colonna destra: anteprima live ═══ -->
-      <div class="preview-col">
-        <div class="preview-toolbar">
-          <h2 class="preview-title">Anteprima</h2>
-          <div class="preview-mode-toggle">
-            <button
-              class="btn btn-sm"
-              :class="previewMode === 'mobile' ? 'btn--primary' : 'btn-ghost'"
-              @click="previewMode = 'mobile'"
-            >Mobile</button>
-            <button
-              class="btn btn-sm"
-              :class="previewMode === 'desktop' ? 'btn--primary' : 'btn-ghost'"
-              @click="previewMode = 'desktop'"
-            >Desktop</button>
-          </div>
-        </div>
-
-        <div class="preview-frame" :class="'preview-frame--' + previewMode">
-          <div class="preview-box">
-            <!-- Desktop -->
-            <div v-if="previewMode === 'desktop'" class="preview-inner preview-inner--desktop">
-              <div class="preview-photo-col preview-photo-col--desktop">
-                <div class="preview-photo">
-                  <img v-if="image" :src="image" alt="" />
-                  <div v-else class="preview-photo-placeholder">Nessuna immagine</div>
-                </div>
-                <div v-if="marqueeText" class="preview-marquee">
-                  <div class="preview-marquee-track">
-                    <span>{{ marqueeText }}</span><span>{{ marqueeText }}</span><span>{{ marqueeText }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="preview-divider-wrap">
-                <span class="preview-divider-line" :style="dividerStyle"></span>
-              </div>
-              <div class="preview-text-col preview-text-col--desktop">
-                <h3 class="preview-heading" :style="{ color: titleColor }">{{ title || 'Titolo' }}</h3>
-                <div class="preview-paragraphs-wrap">
-                  <p v-for="(p, idx) in paragraphs" :key="idx" class="preview-paragraph" :style="{ color: textColor }" v-html="p || '(vuoto)'"></p>
-                  <p v-if="!paragraphs.length" class="preview-empty">Nessun paragrafo</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Mobile -->
-            <div v-else class="preview-inner preview-inner--mobile">
-              <div class="preview-photo-col preview-photo-col--centered">
-                <div class="preview-photo">
-                  <img v-if="image" :src="image" alt="" />
-                  <div v-else class="preview-photo-placeholder">Nessuna immagine</div>
-                </div>
-                <div v-if="marqueeText" class="preview-marquee">
-                  <div class="preview-marquee-track">
-                    <span>{{ marqueeText }}</span><span>{{ marqueeText }}</span><span>{{ marqueeText }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="preview-text-col preview-text-col--center">
-                <h3 class="preview-heading" :style="{ color: titleColor }">{{ title || 'Titolo' }}</h3>
-                <p v-for="(p, idx) in paragraphs" :key="idx" class="preview-paragraph" :style="{ color: textColor }" v-html="p || '(vuoto)'"></p>
-                <p v-if="!paragraphs.length" class="preview-empty">Nessun paragrafo</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </template>
 
     <CloudinaryBrowser
       :visible="showCloudinary"
@@ -445,15 +426,29 @@ const dividerStyle = computed(() => ({
 .page-subtitle { font-size: 14px; color: var(--text-light); margin-top: 4px; }
 .loading-text { color: var(--text-light); padding: 24px 0; }
 
-.aboutme-editor {
-  display: grid;
-  grid-template-columns: 5fr 7fr;
-  gap: 28px;
-  align-items: start;
+/* ── Preview ── */
+.preview-wrap { margin-bottom: 32px; }
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-/* ── Editor column ── */
-.editor-col { display: flex; flex-direction: column; gap: 14px; }
+.preview-frame {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: max-width 0.3s;
+  contain: inline-size;
+}
+.frame--desktop { max-width: 100%; }
+.frame--mobile { max-width: 390px; margin: 0 auto; }
+
+/* ── Editor ── */
+.editor-section-wrap { display: flex; flex-direction: column; gap: 14px; }
+.mgmt-title { margin-bottom: 4px; }
 
 .card {
   background: var(--bg-card);
@@ -688,126 +683,34 @@ const dividerStyle = computed(() => ({
 /* ── Save ── */
 .save-row { display: flex; justify-content: flex-end; }
 
-/* ═══ Preview column ═══ */
-.preview-col { position: sticky; top: 32px; }
-
-.preview-toolbar {
+/* ── Device toggle ── */
+.device-toggle {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
 }
-.preview-title { font-size: 16px; font-weight: 700; margin: 0; }
-.preview-mode-toggle { display: flex; gap: 4px; }
-
-.preview-frame {
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  transition: max-width 0.3s;
-}
-.preview-frame--desktop { max-width: 100%; }
-.preview-frame--mobile { max-width: 320px; margin: 0 auto; }
-
-.preview-box {
-  background: #f5f0eb;
-  padding: 32px 24px;
-}
-
-/* ── Desktop layout ── */
-.preview-inner--desktop {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 0;
-}
-.preview-photo-col--desktop { flex: 0 0 34%; }
-.preview-photo-col--desktop .preview-photo { width: 92%; margin: 0 auto; }
-.preview-photo-col--desktop .preview-marquee { width: 92%; margin-left: auto; margin-right: auto; }
-
-.preview-divider-wrap {
-  display: flex;
-  justify-content: center;
-  align-self: stretch;
-  padding: 8px 12px;
-  flex-shrink: 0;
-}
-.preview-divider-line { display: block; }
-
-.preview-text-col--desktop {
-  flex: 1;
-  text-align: left;
-  padding-top: 6px;
-}
-.preview-paragraphs-wrap { width: 100%; }
-
-/* ── Mobile layout ── */
-.preview-inner--mobile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-.preview-photo-col--centered { width: 70%; }
-.preview-text-col--center { text-align: center; width: 100%; }
-
-/* ── Shared preview elements ── */
-.preview-photo-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.preview-photo { width: 80%; max-width: 420px; margin: 0 auto; border-radius: 12px; overflow: hidden; }
-.preview-photo img { width: 100%; height: auto; object-fit: contain; border-radius: 12px; }
-.preview-photo-placeholder {
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  background: rgba(91, 60, 136, 0.08);
+.device-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
   color: var(--text-light);
-  font-size: 12px;
-  border-radius: 12px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition: all .15s;
 }
-
-.preview-marquee {
-  width: 80%;
-  max-width: 420px;
-  overflow: hidden;
-  margin-top: 10px;
+.device-btn:hover {
+  color: var(--text);
+  background: var(--bg-main);
 }
-.preview-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: marquee-preview 12s linear infinite;
+.device-btn.active {
+  color: var(--primary);
+  background: rgba(99,102,241,.1);
 }
-.preview-marquee-track span {
-  flex-shrink: 0;
-  white-space: nowrap;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: #5b3c88;
-}
-
-@keyframes marquee-preview {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-33.333%); }
-}
-
-.preview-heading {
-  font-family: "Young Serif", serif;
-  font-size: 28px;
-  letter-spacing: 0.04em;
-  margin: 0 0 10px;
-}
-
-.preview-paragraph {
-  font-size: 13px;
-  line-height: 1.7;
-  margin: 0 0 12px;
-}
-
-.preview-empty { font-size: 12px; color: var(--text-light); font-style: italic; }
 </style>

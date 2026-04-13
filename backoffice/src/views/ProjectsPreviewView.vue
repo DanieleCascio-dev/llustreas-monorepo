@@ -1,13 +1,25 @@
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { projectsPreview } from '../services/api'
 import { useToast } from '../composables/useToast'
 import Sortable from 'sortablejs'
+import { ProjectsPreview } from '@illustreas/shared-ui'
 
 const toast = useToast()
 const featured = ref([])
 const available = ref([])
 const loading = ref(true)
+const previewDevice = ref('desktop')
+
+const previewProjects = computed(() =>
+  featured.value.map(p => ({
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    gif: p.gif_url || p.hero_url || '',
+    info: p.info || '',
+  }))
+)
 
 onMounted(load)
 
@@ -115,7 +127,40 @@ onBeforeUnmount(() => { if (sortableInstance) sortableInstance.destroy() })
     <div v-if="loading" class="card" style="text-align:center;padding:48px">Caricamento...</div>
 
     <template v-else>
-      <h3 class="section-title">In Homepage</h3>
+      <!-- ===== FRONTOFFICE PREVIEW ===== -->
+      <div v-if="previewProjects.length" class="fo-preview-wrap">
+        <div class="fo-preview-header">
+          <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'desktop' }"
+              @click="previewDevice = 'desktop'"
+              title="Desktop" aria-label="Vista desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'mobile' }"
+              @click="previewDevice = 'mobile'"
+              title="Mobile" aria-label="Vista mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="fo-preview-frame" :class="'frame--' + previewDevice">
+          <ProjectsPreview
+            :projects="previewProjects"
+            :force-mode="previewDevice"
+            section-radius="0"
+          />
+        </div>
+      </div>
+
+      <!-- ===== MANAGEMENT ===== -->
+      <h3 class="section-title mgmt-title">In Homepage</h3>
 
       <div v-if="!featured.length" class="card empty-state">
         Nessun progetto nella preview. Aggiungine uno dalla lista qui sotto.
@@ -180,7 +225,21 @@ onBeforeUnmount(() => { if (sortableInstance) sortableInstance.destroy() })
 .page-desc{color:var(--text-light);font-size:14px;margin-bottom:24px}
 .counter{font-size:14px;font-weight:600;color:var(--text-light);background:var(--bg-card);padding:4px 12px;border-radius:var(--radius);border:1px solid var(--border)}
 .section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:12px}
+.mgmt-title{margin-top:8px}
 .mt-32{margin-top:32px}
+
+/* ── Preview ── */
+.fo-preview-wrap{margin-bottom:32px}
+.fo-preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+
+.device-toggle{display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:2px}
+.device-btn{display:flex;align-items:center;justify-content:center;width:32px;height:28px;border:none;background:transparent;color:var(--text-light);border-radius:calc(var(--radius) - 2px);cursor:pointer;transition:all .15s}
+.device-btn:hover{color:var(--text);background:var(--bg-main)}
+.device-btn.active{color:var(--primary);background:rgba(99,102,241,.1)}
+
+.fo-preview-frame{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#f8f8fa;transition:max-width .3s ease;contain:inline-size}
+.frame--desktop{max-width:100%}
+.frame--mobile{max-width:390px;margin:0 auto}
 .empty-state{text-align:center;padding:32px;color:var(--text-light);font-size:14px}
 
 .preview-row{display:flex;align-items:center;gap:16px;padding:12px 16px}

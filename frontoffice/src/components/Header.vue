@@ -11,8 +11,24 @@ const activeNav = ref<'home' | 'projects' | 'gallery' | 'about' | ''>('')
 const toggleNav = () => { navbarOpen.value = !navbarOpen.value }
 const closeNav = () => { navbarOpen.value = false }
 
+let savedScrollY = 0
+
 watch(navbarOpen, (open) => {
-  document.body.classList.toggle('no-scroll', open)
+  if (open) {
+    savedScrollY = window.scrollY
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${savedScrollY}px`
+    document.body.style.left = '0'
+    document.body.style.right = '0'
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.position = ''
+    document.body.style.top = ''
+    document.body.style.left = ''
+    document.body.style.right = ''
+    document.body.style.overflow = ''
+    window.scrollTo(0, savedScrollY)
+  }
 })
 
 watch(() => route.fullPath, () => {
@@ -126,7 +142,7 @@ const handleProjectsClick = () => {
   align-items: center;
   background-color: var(--header-bg);
   transition: background-color 0.35s ease;
-  padding: 0 env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
 
   @media (min-width: 768px) {
     height: 80px;
@@ -395,8 +411,6 @@ const handleProjectsClick = () => {
 </style>
 
 <style lang="scss">
-body.no-scroll { overflow: hidden; }
-
 #gallery-preview,
 #about-me { scroll-margin-top: 90px; }
 </style>

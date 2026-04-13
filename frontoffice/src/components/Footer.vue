@@ -78,9 +78,14 @@ const year = new Date().getFullYear()
     color: $bg-light;
     text-decoration: none;
 
-    &:hover,
     &:active {
       text-decoration: underline;
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 }
@@ -143,9 +148,11 @@ const year = new Date().getFullYear()
     text-decoration: none;
     transition: opacity 0.2s;
 
-    &:hover {
-      opacity: 0.8;
-      text-decoration: underline;
+    @media (hover: hover) {
+      &:hover {
+        opacity: 0.8;
+        text-decoration: underline;
+      }
     }
   }
 }

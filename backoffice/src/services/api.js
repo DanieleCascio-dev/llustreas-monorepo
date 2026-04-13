@@ -38,6 +38,7 @@ export const projects = {
   create: (data) => api.post('/api/admin/projects', data),
   update: (id, data) => api.put(`/api/admin/projects/${id}`, data),
   delete: (id) => api.delete(`/api/admin/projects/${id}`),
+  duplicate: (id) => api.post(`/api/admin/projects/${id}/duplicate`),
   reorder: (order) => api.put('/api/admin/projects-reorder', { order }),
 }
 
@@ -50,11 +51,11 @@ export const projectImages = {
 }
 
 export const gallery = {
-  list: () => api.get('/api/admin/gallery'),
+  list: (layout = 'desktop') => api.get('/api/admin/gallery', { params: { layout } }),
   create: (data) => api.post('/api/admin/gallery', data),
   update: (id, data) => api.put(`/api/admin/gallery/${id}`, data),
   delete: (id) => api.delete(`/api/admin/gallery/${id}`),
-  reorder: (order) => api.put('/api/admin/gallery-reorder', { order }),
+  reorder: (order, layout = 'desktop') => api.put('/api/admin/gallery-reorder', { order, layout }),
 }
 
 export const projectsPreview = {

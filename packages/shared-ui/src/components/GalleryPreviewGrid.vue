@@ -38,7 +38,7 @@ const gridStyle = computed(() => {
         @click="emit('imageClick', item)"
         @keydown.enter="emit('imageClick', item)"
       >
-        <img :src="item.url" :alt="item.title" />
+        <img :src="item.url" :alt="item.title" loading="lazy" />
       </div>
     </div>
   </div>

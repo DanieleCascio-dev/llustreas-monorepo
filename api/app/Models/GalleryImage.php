@@ -15,6 +15,7 @@ class GalleryImage extends Model
         'column_index',
         'order',
         'is_preview',
+        'layout',
     ];
 
     protected $casts = [
@@ -31,5 +32,10 @@ class GalleryImage extends Model
     public function scopeByColumn($query, int $column)
     {
         return $query->where('column_index', $column);
+    }
+
+    public function scopeByLayout($query, string $layout)
+    {
+        return $query->where('layout', $layout);
     }
 }

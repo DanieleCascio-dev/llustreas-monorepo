@@ -99,7 +99,7 @@ function nextImage() {
             :class="image.imagePosition === 'bottom-right' ? 'block-images--bottom-right' : ''"
             :style="{ backgroundColor: image.text.backgroundColor }"
           >
-            <img :src="image.image.src" :alt="project.title" />
+            <img :src="image.image.src" :alt="project.title" loading="lazy" />
           </div>
         </div>
 
@@ -108,6 +108,7 @@ function nextImage() {
           :src="image.src"
           :alt="project.title"
           class="clickable-img"
+          loading="lazy"
           @click="openModal(image)"
         />
       </div>
@@ -196,6 +197,7 @@ function nextImage() {
     flex-direction: row;
     align-items: stretch;
     min-height: 100vh;
+    min-height: 100dvh;
 
     &.text-right {
       flex-direction: row-reverse;
@@ -222,6 +224,7 @@ function nextImage() {
   @media (min-width: 900px) {
     flex: 0 0 55%;
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 80px 64px 64px;
   }
 }
@@ -286,6 +289,7 @@ function nextImage() {
 
 .block-images {
   min-height: 50vh;
+  min-height: 50dvh;
   display: flex;
   align-items: center;
 
@@ -307,6 +311,7 @@ function nextImage() {
   align-items: flex-end;
   position: relative;
   min-height: 40vh;
+  min-height: 40dvh;
 
   img {
     position: absolute;

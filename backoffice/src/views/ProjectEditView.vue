@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { projects, projectImages } from '../services/api'
 import { useToast } from '../composables/useToast'
+import { useKeyboardSave } from '../composables/useKeyboardSave'
 import ImageUploader from '../components/ImageUploader.vue'
 import RichEditor from '../components/RichEditor.vue'
 import Sortable from 'sortablejs'
@@ -10,6 +11,7 @@ import Sortable from 'sortablejs'
 const frontofficeUrl = import.meta.env.VITE_FRONTOFFICE_URL || 'http://localhost:5173'
 
 const toast = useToast()
+useKeyboardSave(() => save())
 const route = useRoute()
 const router = useRouter()
 const isEdit = computed(() => !!route.params.id)

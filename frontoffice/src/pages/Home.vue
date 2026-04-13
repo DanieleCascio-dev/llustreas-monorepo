@@ -117,9 +117,17 @@ onBeforeUnmount(() => {
   position: relative;
   overflow-x: clip;
 
+  @supports not (overflow-x: clip) {
+    overflow-x: hidden;
+  }
+
   .gallery-section-wrap {
     position: relative;
     overflow-x: clip;
+
+    @supports not (overflow-x: clip) {
+      overflow-x: hidden;
+    }
   }
 
   .flower-red {
@@ -149,6 +157,10 @@ onBeforeUnmount(() => {
   .about-section-wrap {
     position: relative;
     overflow-x: clip;
+
+    @supports not (overflow-x: clip) {
+      overflow-x: hidden;
+    }
   }
 
   .flower-yellow {

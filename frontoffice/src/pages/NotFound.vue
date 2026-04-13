@@ -14,6 +14,7 @@ import { RouterLink } from "vue-router";
 
 .not-found {
   min-height: 50vh;
+  min-height: 50dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -37,8 +38,10 @@ import { RouterLink } from "vue-router";
   text-decoration: underline;
   text-underline-offset: 0.2em;
 
-  &:hover {
-    color: $logo-color;
+  @media (hover: hover) {
+    &:hover {
+      color: $logo-color;
+    }
   }
 }
 </style>

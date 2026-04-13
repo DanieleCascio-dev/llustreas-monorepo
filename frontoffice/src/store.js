@@ -18,8 +18,9 @@ export const useProjectStore = defineStore('projectStore', {
     featuredProjects: [],
     featuredLoaded: false,
 
-    // GALLERIA (3 colonne di immagini)
+    // GALLERIA (colonne desktop + mobile)
     columns: [],
+    mobileColumns: [],
     columnsLoaded: false,
 
     // GALLERIA PREVIEW (immagini homepage)
@@ -110,12 +111,19 @@ export const useProjectStore = defineStore('projectStore', {
       }
     },
 
-    // Carica le 3 colonne della galleria completa
+    // Carica le colonne della galleria completa (desktop + mobile)
     async fetchGallery() {
       if (this.columnsLoaded) return
       try {
         const { data } = await publicApi.gallery()
-        this.columns = data
+        if (data.desktop) {
+          this.columns = data.desktop
+          this.mobileColumns = data.mobile || []
+        } else {
+          // backward compat: old API returns flat array of 3 columns
+          this.columns = data
+          this.mobileColumns = []
+        }
         this.columnsLoaded = true
       } catch (e) {
         console.error('Errore caricamento galleria:', e)

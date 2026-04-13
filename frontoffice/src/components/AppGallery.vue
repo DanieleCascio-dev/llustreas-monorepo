@@ -116,7 +116,7 @@ function nextImage() {
     </header>
     <div class="row d-flex justify-content-center flex-wrap mx-5">
       <div class="column" v-for="(column, colIndex) in columns" :key="colIndex">
-        <img v-for="(image, imgIndex) in column" :key="imgIndex" :src="image.src" :alt="image.title" @click="openModal(image)" />
+        <img v-for="(image, imgIndex) in column" :key="imgIndex" :src="image.src" :alt="image.title" loading="lazy" @click="openModal(image)" />
       </div>
     </div>
     <transition name="modal-fade">
@@ -168,20 +168,19 @@ header {
   }
 }
 video {
-  &:hover {
-    cursor: pointer;
-  }
+  cursor: pointer;
 }
 img {
   width: 100%;
-  height: auto; /* Maintain aspect ratio */
+  height: auto;
   display: block;
+  cursor: pointer;
   transition: transform 0.4s ease;
 
-  &:hover {
-    /* border: 5px solid white; */
-    cursor: pointer;
-    transform: scale(.95);
+  @media (hover: hover) {
+    &:hover {
+      transform: scale(.95);
+    }
   }
 }
 

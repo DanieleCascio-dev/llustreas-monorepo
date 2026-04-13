@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->group(function () {
         // Projects
         Route::apiResource('projects', ProjectController::class);
+        Route::post('/projects/{project}/duplicate', [ProjectController::class, 'duplicate']);
         Route::put('/projects-reorder', [ProjectController::class, 'reorder']);
 
         // Project images

@@ -53,7 +53,9 @@ const posts = computed(() => store.instagramPosts)
   gap: 10px;
   transition: opacity 0.2s;
 
-  &:hover { opacity: 0.75; }
+  @media (hover: hover) {
+    &:hover { opacity: 0.75; }
+  }
 }
 
 .ig-icon {

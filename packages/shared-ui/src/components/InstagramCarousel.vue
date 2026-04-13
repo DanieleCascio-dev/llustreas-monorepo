@@ -8,6 +8,7 @@ const props = defineProps({
   mobileScroll: { type: Boolean, default: false },
   marqueeSpeed: { type: String, default: '80s' },
   sectionRadius: { type: String, default: '0' },
+  forceMode: { type: String, default: null },
 })
 
 const emit = defineEmits(['reorder'])
@@ -19,6 +20,8 @@ const dragging = ref(null)
 const dropTarget = ref(null)
 
 function checkMobile() {
+  if (props.forceMode === 'mobile') { isMobile.value = true; return }
+  if (props.forceMode === 'desktop') { isMobile.value = false; return }
   isMobile.value = props.mobileScroll && window.innerWidth < 768
 }
 
@@ -53,8 +56,8 @@ function onDragEnd() {
 }
 
 onMounted(() => {
+  checkMobile()
   if (props.mobileScroll) {
-    checkMobile()
     window.addEventListener('resize', checkMobile)
   }
   if (props.posts.length) loadEmbedScript()
@@ -66,6 +69,10 @@ onBeforeUnmount(() => {
   }
 })
 
+watch(() => props.forceMode, () => {
+  checkMobile()
+  scheduleEmbed()
+})
 watch(() => props.posts, () => scheduleEmbed(), { deep: true })
 watch(isMobile, () => scheduleEmbed())
 </script>
@@ -199,8 +206,10 @@ watch(isMobile, () => scheduleEmbed())
   transition: opacity 0.2s;
 }
 
-.ig-title-link:hover {
-  opacity: 0.75;
+@media (hover: hover) {
+  .ig-title-link:hover {
+    opacity: 0.75;
+  }
 }
 
 .ig-icon {
@@ -238,8 +247,10 @@ watch(isMobile, () => scheduleEmbed())
   -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
 }
 
-.ig-marquee-wrap:hover .ig-marquee-track {
-  animation-play-state: paused;
+@media (hover: hover) {
+  .ig-marquee-wrap:hover .ig-marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 .ig-marquee-track {

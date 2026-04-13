@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { instagram } from '../services/api'
+import { instagram, settings } from '../services/api'
 import { useToast } from '../composables/useToast'
 import InstagramPreview from '../components/InstagramPreview.vue'
 
@@ -10,6 +10,9 @@ const posts = ref([])
 const loading = ref(true)
 const newUrl = ref('')
 const adding = ref(false)
+const previewDevice = ref('desktop')
+const marqueeSpeed = ref(80)
+const savingSpeed = ref(false)
 
 const expandedPosts = ref(new Set())
 const embedKeys = ref({})
@@ -30,10 +33,28 @@ async function load() {
   }
 }
 
+const marqueeSpeedCss = computed(() => marqueeSpeed.value + 's')
+
 onMounted(async () => {
   await load()
   loadEmbedScript()
+  try {
+    const { data } = await settings.get('instagram_marquee_speed')
+    if (data.value) marqueeSpeed.value = Number(data.value) || 80
+  } catch { /* keep default */ }
 })
+
+async function saveSpeed() {
+  savingSpeed.value = true
+  try {
+    await settings.update('instagram_marquee_speed', marqueeSpeed.value)
+    toast.success('Velocità salvata')
+  } catch {
+    toast.error('Errore salvataggio velocità')
+  } finally {
+    savingSpeed.value = false
+  }
+}
 
 function extractPostId(url) {
   const match = url.match(/instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/)
@@ -208,11 +229,52 @@ watch(expandedPosts, scheduleEmbed)
     <template v-else>
       <!-- ===== FRONTOFFICE PREVIEW ===== -->
       <div v-if="activePosts.length" class="preview-wrap">
-        <h2 class="section-title">Anteprima frontoffice</h2>
-        <InstagramPreview
-          :posts="activePosts"
-          @reorder="onPreviewReorder"
-        />
+        <div class="preview-header">
+          <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="preview-controls">
+            <div class="speed-control">
+              <label class="speed-label">Velocità</label>
+              <input
+                type="range"
+                class="speed-slider"
+                v-model.number="marqueeSpeed"
+                min="20"
+                max="200"
+                step="5"
+              />
+              <span class="speed-value">{{ marqueeSpeed }}s</span>
+              <button class="btn btn-sm btn-primary speed-save" :disabled="savingSpeed" @click="saveSpeed">
+                {{ savingSpeed ? '...' : 'Salva' }}
+              </button>
+            </div>
+            <div class="device-toggle">
+              <button
+                class="device-btn"
+                :class="{ active: previewDevice === 'desktop' }"
+                @click="previewDevice = 'desktop'"
+                title="Desktop" aria-label="Vista desktop"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </button>
+              <button
+                class="device-btn"
+                :class="{ active: previewDevice === 'mobile' }"
+                @click="previewDevice = 'mobile'"
+                title="Mobile" aria-label="Vista mobile"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-frame" :class="'frame--' + previewDevice">
+          <InstagramPreview
+            :posts="activePosts"
+            :force-mode="previewDevice"
+            :marquee-speed="marqueeSpeedCss"
+            @reorder="onPreviewReorder"
+          />
+        </div>
       </div>
 
       <!-- ===== MANAGEMENT SECTION ===== -->
@@ -337,6 +399,99 @@ watch(expandedPosts, scheduleEmbed)
 
 .preview-wrap {
   margin-bottom: 32px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+}
+.speed-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 600;
+}
+.speed-slider {
+  width: 100px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.speed-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 32px;
+  text-align: right;
+}
+.speed-save {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.device-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+}
+.device-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition: all .15s;
+}
+.device-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-main);
+}
+.device-btn.active {
+  color: var(--primary);
+  background: rgba(99,102,241,.1);
+}
+
+.preview-frame {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8f8fa;
+  transition: max-width .3s ease;
+  contain: inline-size;
+}
+.frame--desktop {
+  max-width: 100%;
+}
+.frame--mobile {
+  max-width: 390px;
+  margin: 0 auto;
 }
 
 /* ===== MANAGEMENT SECTION ===== */

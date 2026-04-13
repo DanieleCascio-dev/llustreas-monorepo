@@ -78,6 +78,39 @@ class ProjectController extends Controller
         return response()->json(null, 204);
     }
 
+    public function duplicate(Project $project): JsonResponse
+    {
+        $maxOrder = Project::max('order') ?? 0;
+
+        $clone = $project->replicate(['slug']);
+        $clone->title = $project->title . ' (copia)';
+        $clone->slug = Str::slug($clone->title) . '-' . Str::random(5);
+        $clone->is_published = false;
+        $clone->order = $maxOrder + 1;
+        $clone->save();
+
+        $project->load(['images' => fn ($q) => $q->orderBy('order'), 'images.textBlock.paragraphs']);
+        foreach ($project->images as $img) {
+            $newImg = $img->replicate();
+            $newImg->project_id = $clone->id;
+            $newImg->save();
+
+            if ($img->textBlock) {
+                $newBlock = $img->textBlock->replicate();
+                $newBlock->project_image_id = $newImg->id;
+                $newBlock->save();
+
+                foreach ($img->textBlock->paragraphs as $para) {
+                    $newPara = $para->replicate();
+                    $newPara->text_block_id = $newBlock->id;
+                    $newPara->save();
+                }
+            }
+        }
+
+        return response()->json($clone->load('images'), 201);
+    }
+
     public function reorder(Request $request): JsonResponse
     {
         $data = $request->validate([

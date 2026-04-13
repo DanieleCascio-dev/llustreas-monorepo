@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import ConfirmModal from './ConfirmModal.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -52,6 +53,7 @@ async function handleLogout() {
     <main class="main">
       <router-view />
     </main>
+    <ConfirmModal />
   </div>
 </template>
 

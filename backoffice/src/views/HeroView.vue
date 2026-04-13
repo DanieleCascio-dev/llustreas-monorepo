@@ -4,6 +4,7 @@ import { hero, heroImages } from '../services/api'
 import { uploadImage } from '../services/cloudinary'
 import { useToast } from '../composables/useToast'
 import CloudinaryBrowser from '../components/CloudinaryBrowser.vue'
+import { HeroPreview } from '@illustreas/shared-ui'
 
 const toast = useToast()
 
@@ -223,42 +224,6 @@ async function doDeleteImage() {
   }
 }
 
-// ── Preview computed ──
-const previewLayers = computed(() => {
-  return [...layers.value].sort((a, b) => a.z_index - b.z_index)
-})
-
-function previewTransform(layer) {
-  const offset = previewScroll.value * layer.parallax_speed
-  return `translateY(${offset}px)`
-}
-
-function previewSlideshowTransform(layer) {
-  const offset = previewScroll.value * layer.parallax_speed
-  return `translate3d(-50%, ${offset}px, 0)`
-}
-
-function previewImageSrc(layer) {
-  if (!layer.images.length) return null
-  const img = layer.images[0]
-  return previewMode.value === 'mobile' ? img.mobile_src : img.desktop_src
-}
-
-function previewSlides(layer) {
-  return layer.images.map(img =>
-    previewMode.value === 'mobile' ? img.mobile_src : img.desktop_src
-  ).filter(Boolean)
-}
-
-function previewSlideDuration(layer) {
-  const count = layer.images?.length || 1
-  return (count * 4) + 's'
-}
-
-function isLastImageLayer(layer) {
-  const imageLayers = previewLayers.value.filter(l => l.type === 'image' && l.images?.length)
-  return imageLayers.length > 0 && imageLayers[imageLayers.length - 1].id === layer.id
-}
 </script>
 
 <template>
@@ -272,8 +237,47 @@ function isLastImageLayer(layer) {
 
     <div v-if="loading" class="loading-text">Caricamento…</div>
 
-    <div v-else class="hero-editor">
-      <!-- Colonna sinistra: editor layer -->
+    <template v-if="!loading">
+      <!-- ===== FRONTOFFICE PREVIEW ===== -->
+      <div v-if="layers.length" class="fo-preview-wrap">
+        <div class="fo-preview-header">
+          <h2 class="section-label" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewMode === 'desktop' }"
+              @click="previewMode = 'desktop'"
+              title="Desktop" aria-label="Vista desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewMode === 'mobile' }"
+              @click="previewMode = 'mobile'"
+              title="Mobile" aria-label="Vista mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="fo-preview-frame" :class="'frame--' + previewMode">
+          <HeroPreview
+            :layers="layers"
+            :force-mode="previewMode"
+            :scroll-offset="previewScroll"
+          />
+        </div>
+        <div class="preview-scroll-control">
+          <label>Simula scroll</label>
+          <input type="range" v-model.number="previewScroll" min="0" max="200" class="preview-slider" />
+          <span class="preview-scroll-value">{{ previewScroll }}px</span>
+        </div>
+      </div>
+
+      <!-- ===== EDITOR ===== -->
+      <h2 v-if="layers.length" class="section-label editor-title">Editor livelli</h2>
+
       <div class="editor-col">
         <div
           v-for="layer in layers"
@@ -475,65 +479,7 @@ function isLastImageLayer(layer) {
           </div>
         </div>
       </div>
-
-      <!-- Colonna destra: anteprima live -->
-      <div class="preview-col">
-        <div class="preview-toolbar">
-          <h2 class="preview-heading">Anteprima</h2>
-          <div class="preview-mode-toggle">
-            <button
-              class="btn btn-sm"
-              :class="previewMode === 'mobile' ? 'btn--primary' : 'btn-ghost'"
-              @click="previewMode = 'mobile'"
-            >Cellulare</button>
-            <button
-              class="btn btn-sm"
-              :class="previewMode === 'desktop' ? 'btn--primary' : 'btn-ghost'"
-              @click="previewMode = 'desktop'"
-            >Computer</button>
-          </div>
-        </div>
-
-        <div class="preview-box" :class="'preview-box--' + previewMode">
-          <div class="preview-hero">
-            <template v-for="layer in previewLayers" :key="layer.id">
-              <div
-                v-if="layer.type === 'image' && previewImageSrc(layer)"
-                class="preview-layer"
-                :class="{ 'preview-layer--last': isLastImageLayer(layer) }"
-                :style="{ zIndex: layer.z_index, transform: previewTransform(layer) }"
-              >
-                <img :src="previewImageSrc(layer)" alt="" />
-              </div>
-
-              <div
-                v-else-if="layer.type === 'slideshow' && previewSlides(layer).length"
-                class="preview-titles"
-                :style="{ zIndex: layer.z_index, transform: previewSlideshowTransform(layer) }"
-              >
-                <img
-                  v-for="(src, si) in previewSlides(layer)"
-                  :key="si"
-                  :src="src"
-                  alt=""
-                  class="preview-slide"
-                  :style="{
-                    animationDelay: (si * 4) + 's',
-                    animationDuration: previewSlideDuration(layer),
-                  }"
-                />
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <div class="preview-scroll-control">
-          <label>Simula scroll della pagina</label>
-          <input type="range" v-model.number="previewScroll" min="0" max="200" class="preview-slider" />
-          <span class="preview-scroll-value">{{ previewScroll }}px</span>
-        </div>
-      </div>
-    </div>
+    </template>
 
     <!-- Cloudinary browser modal -->
     <CloudinaryBrowser
@@ -578,13 +524,6 @@ function isLastImageLayer(layer) {
 .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }
 .page-subtitle { font-size: 14px; color: var(--text-light); margin-top: 6px; line-height: 1.5; max-width: 480px; }
 .loading-text { color: var(--text-light); padding: 24px 0; }
-
-.hero-editor {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
-  align-items: start;
-}
 
 /* ── Editor column ── */
 .editor-col {
@@ -855,114 +794,21 @@ function isLastImageLayer(layer) {
   color: var(--primary);
 }
 
-/* ── Preview column ── */
-.preview-col {
-  position: sticky;
-  top: 32px;
-}
+/* ── Preview ── */
+.fo-preview-wrap{margin-bottom:24px}
+.fo-preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 
-.preview-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.preview-heading { font-size: 16px; font-weight: 700; margin: 0; }
+.section-label{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:8px}
+.editor-title{margin-bottom:12px}
 
-.preview-mode-toggle {
-  display: flex;
-  gap: 4px;
-}
+.device-toggle{display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:2px}
+.device-btn{display:flex;align-items:center;justify-content:center;width:32px;height:28px;border:none;background:transparent;color:var(--text-light);border-radius:calc(var(--radius) - 2px);cursor:pointer;transition:all .15s}
+.device-btn:hover{color:var(--text);background:var(--bg-main)}
+.device-btn.active{color:var(--primary);background:rgba(99,102,241,.1)}
 
-.preview-box {
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: #eee;
-  transition: max-width 0.3s;
-}
-.preview-box--desktop { max-width: 100%; }
-.preview-box--mobile { max-width: 320px; margin: 0 auto; }
-
-.preview-hero {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-}
-.preview-box--desktop .preview-hero {
-  aspect-ratio: 16 / 9;
-}
-.preview-box--mobile .preview-hero {
-  aspect-ratio: 9 / 16;
-}
-
-.preview-layer {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-  transition: transform 0.05s linear;
-}
-.preview-layer img {
-  display: block;
-  width: 100%;
-  height: 120%;
-  object-fit: cover;
-  object-position: center bottom;
-}
-
-.preview-layer--last {
-  top: auto;
-  bottom: 0;
-  height: auto;
-}
-.preview-layer--last img {
-  height: auto;
-}
-
-.preview-titles {
-  position: absolute;
-  left: 50%;
-  transform: translate3d(-50%, 0, 0);
-  will-change: transform;
-  pointer-events: none;
-  transition: transform 0.05s linear;
-}
-
-.preview-box--mobile .preview-titles {
-  top: -7%;
-  width: 85%;
-  height: 35%;
-}
-
-.preview-box--desktop .preview-titles {
-  top: 10%;
-  width: 65%;
-}
-
-.preview-slide {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  opacity: 0;
-  animation: hero-preview-fade 12s infinite;
-}
-
-.preview-box--mobile .preview-slide {
-  height: 100%;
-}
-
-.preview-box--desktop .preview-slide {
-  height: auto;
-}
-
-@keyframes hero-preview-fade {
-  0%   { opacity: 0; }
-  10%  { opacity: 1; }
-  30%  { opacity: 1; }
-  40%  { opacity: 0; }
-  100% { opacity: 0; }
-}
+.fo-preview-frame{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#f8f8fa;transition:max-width .3s ease;contain:inline-size}
+.frame--desktop{max-width:100%}
+.frame--mobile{max-width:390px;margin:0 auto}
 
 /* ── Scroll slider ── */
 .preview-scroll-control {

@@ -1,45 +1,51 @@
 <script setup>
-/*** GALLERIA MASONRY — 2 colonne mobile, 3 colonne da 768px ***/
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { MasonryGallery as BaseMasonryGallery } from '@illustreas/shared-ui'
 import ImageModal from './ImageModal.vue'
 import { useProjectStore } from '../store'
 
 const store = useProjectStore()
-const storeColumns = computed(() => store.columns)
 
 onMounted(() => {
   store.fetchGallery()
+  window.addEventListener('resize', onResize)
 })
 
-const columnCount = ref(window.innerWidth < 768 ? 2 : 3)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize)
+  clearTimeout(resizeTimer)
+})
 
+const isMobile = ref(window.innerWidth < 768)
 let resizeTimer = 0
 function onResize() {
   clearTimeout(resizeTimer)
   resizeTimer = window.setTimeout(() => {
-    columnCount.value = window.innerWidth < 768 ? 2 : 3
+    isMobile.value = window.innerWidth < 768
   }, 150)
 }
 
+const hasMobileLayout = computed(() =>
+  store.mobileColumns?.length > 0 &&
+  store.mobileColumns.some(col => col.length > 0)
+)
+
+const activeColumns = computed(() => {
+  if (isMobile.value && hasMobileLayout.value) return store.mobileColumns
+  return store.columns
+})
+
 const allImages = computed(() => {
-  if (!storeColumns.value?.length) return []
+  const cols = activeColumns.value
+  if (!cols?.length) return []
   const flat = []
-  const maxLen = Math.max(...storeColumns.value.map(c => c.length))
+  const maxLen = Math.max(...cols.map(c => c.length))
   for (let row = 0; row < maxLen; row++) {
-    for (let col = 0; col < storeColumns.value.length; col++) {
-      if (storeColumns.value[col][row]) flat.push(storeColumns.value[col][row])
+    for (let col = 0; col < cols.length; col++) {
+      if (cols[col][row]) flat.push(cols[col][row])
     }
   }
   return flat
-})
-
-const displayColumns = computed(() => {
-  const flat = allImages.value
-  if (!flat.length) return []
-  const n = columnCount.value
-  const cols = Array.from({ length: n }, () => [])
-  flat.forEach((img, i) => cols[i % n].push(img))
-  return cols
 })
 
 const isModalVisible = ref(false)
@@ -72,37 +78,15 @@ function nextImage() {
     selectedImage.value = allImages.value[idx + 1]
   }
 }
-
-onMounted(() => {
-  window.addEventListener('resize', onResize)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', onResize)
-  clearTimeout(resizeTimer)
-})
 </script>
 
 <template>
-  <div class="masonry-section">
-    <div class="masonry-grid" v-if="displayColumns.length">
-      <div class="masonry-col" v-for="(col, colIdx) in displayColumns" :key="colIdx">
-        <div
-          class="masonry-item"
-          v-for="image in col"
-          :key="image.id"
-          tabindex="0"
-          role="button"
-          :aria-label="image.title || 'Apri immagine'"
-          @click="openModal(image)"
-          @keydown.enter="openModal(image)"
-        >
-          <img :src="image.src" :alt="image.title || ''" loading="lazy" />
-        </div>
-      </div>
-    </div>
-    <div v-else class="masonry-empty">
-      <p>Nessuna immagine in galleria.</p>
-    </div>
+  <div class="masonry-fo-wrap">
+    <BaseMasonryGallery
+      :columns="activeColumns"
+      :force-mode="isMobile ? 'mobile' : 'desktop'"
+      @image-click="openModal"
+    />
 
     <transition name="modal-fade">
       <ImageModal
@@ -119,71 +103,8 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 @use "../style/partials/variables" as *;
 
-.masonry-section {
+.masonry-fo-wrap :deep(.mg-section) {
   background-color: $bg-light;
-  padding: 0 12px 32px;
-
-  @media (min-width: 768px) {
-    padding: 0 24px 48px;
-  }
-}
-
-.masonry-grid {
-  display: flex;
-  gap: 6px;
-
-  @media (min-width: 768px) {
-    gap: 8px;
-  }
-}
-
-.masonry-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  @media (min-width: 768px) {
-    gap: 8px;
-  }
-}
-
-.masonry-item {
-  overflow: hidden;
-  border-radius: 6px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-violet, #5b3c88);
-    outline-offset: 2px;
-  }
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-    transition: transform 0.35s ease, filter 0.35s ease;
-  }
-
-  @media (hover: hover) {
-    &:hover img {
-      transform: scale(1.03);
-      filter: brightness(0.92);
-    }
-  }
-
-  &:active img {
-    transform: scale(0.98);
-    transition: transform 0.12s ease;
-  }
-}
-
-.masonry-empty {
-  text-align: center;
-  padding: 64px 24px;
-  color: $text-color;
-  font-size: 1rem;
 }
 
 .modal-fade-enter-active,

@@ -9,9 +9,12 @@ use Illuminate\Http\Request;
 
 class GalleryController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $layout = $request->query('layout', 'desktop');
+
         $images = GalleryImage::where('is_preview', false)
+            ->byLayout($layout)
             ->orderBy('column_index')
             ->orderBy('order')
             ->get();
@@ -21,15 +24,24 @@ class GalleryController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $layout = $request->input('layout', 'desktop');
+        $maxCol = $layout === 'mobile' ? 1 : 2;
+
         $data = $request->validate([
             'src' => 'required|string',
             'title' => 'nullable|string|max:255',
-            'column_index' => 'required|integer|min:0|max:2',
+            'column_index' => "required|integer|min:0|max:$maxCol",
             'order' => 'integer',
             'is_preview' => 'boolean',
+            'layout' => 'sometimes|string|in:desktop,mobile',
         ]);
 
-        $maxOrder = GalleryImage::where('column_index', $data['column_index'])->max('order') ?? -1;
+        $data['layout'] = $layout;
+
+        $maxOrder = GalleryImage::where('column_index', $data['column_index'])
+            ->where('layout', $layout)
+            ->where('is_preview', false)
+            ->max('order') ?? -1;
         $data['order'] = $data['order'] ?? $maxOrder + 1;
 
         $image = GalleryImage::create($data);
@@ -43,10 +55,13 @@ class GalleryController extends Controller
             abort(403, 'Immagine di preview non modificabile da questa route');
         }
 
+        $layout = $gallery->layout ?? 'desktop';
+        $maxCol = $layout === 'mobile' ? 1 : 2;
+
         $data = $request->validate([
             'src' => 'sometimes|string',
             'title' => 'nullable|string|max:255',
-            'column_index' => 'sometimes|integer|min:0|max:2',
+            'column_index' => "sometimes|integer|min:0|max:$maxCol",
             'order' => 'sometimes|integer',
             'is_preview' => 'sometimes|boolean',
         ]);
@@ -69,10 +84,14 @@ class GalleryController extends Controller
 
     public function reorder(Request $request): JsonResponse
     {
+        $layout = $request->input('layout', 'desktop');
+        $maxCol = $layout === 'mobile' ? 1 : 2;
+
         $data = $request->validate([
+            'layout' => 'sometimes|string|in:desktop,mobile',
             'order' => 'required|array',
             'order.*.id' => 'required|exists:gallery_images,id',
-            'order.*.column_index' => 'required|integer|min:0|max:2',
+            'order.*.column_index' => "required|integer|min:0|max:$maxCol",
             'order.*.order' => 'required|integer',
         ]);
 

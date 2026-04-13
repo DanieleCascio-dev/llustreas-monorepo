@@ -14,6 +14,10 @@ const previewMode = ref('carousel')
 const previewDevice = ref('desktop')
 const uploading = ref(false)
 const recentlyRemoved = ref([])
+const marqueeSpeed = ref(50)
+const savingSpeed = ref(false)
+
+const marqueeSpeedCss = computed(() => marqueeSpeed.value + 's')
 
 const showPicker = ref(false)
 const showCloudinary = ref(false)
@@ -53,7 +57,23 @@ onMounted(async () => {
     const { data } = await settings.get('gallery_preview_mode')
     if (data.value) previewMode.value = data.value
   } catch { /* keep default */ }
+  try {
+    const { data } = await settings.get('gallery_preview_marquee_speed')
+    if (data.value) marqueeSpeed.value = Number(data.value) || 50
+  } catch { /* keep default */ }
 })
+
+async function saveSpeed() {
+  savingSpeed.value = true
+  try {
+    await settings.update('gallery_preview_marquee_speed', marqueeSpeed.value)
+    toast.success('Velocità salvata')
+  } catch {
+    toast.error('Errore salvataggio velocità')
+  } finally {
+    savingSpeed.value = false
+  }
+}
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeSlotMenu)
 })
@@ -368,23 +388,40 @@ function onSlotDragEnd() {
       <div v-if="previewImages.length" class="fo-preview-wrap">
         <div class="fo-preview-header">
           <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
-          <div class="device-toggle">
-            <button
-              class="device-btn"
-              :class="{ active: previewDevice === 'desktop' }"
-              @click="previewDevice = 'desktop'"
-              title="Desktop"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            </button>
-            <button
-              class="device-btn"
-              :class="{ active: previewDevice === 'mobile' }"
-              @click="previewDevice = 'mobile'"
-              title="Mobile"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            </button>
+          <div class="preview-controls">
+            <div v-if="previewMode === 'carousel'" class="speed-control">
+              <label class="speed-label">Velocità</label>
+              <input
+                type="range"
+                class="speed-slider"
+                v-model.number="marqueeSpeed"
+                min="20"
+                max="200"
+                step="5"
+              />
+              <span class="speed-value">{{ marqueeSpeed }}s</span>
+              <button class="btn btn-sm btn-primary speed-save" :disabled="savingSpeed" @click="saveSpeed">
+                {{ savingSpeed ? '...' : 'Salva' }}
+              </button>
+            </div>
+            <div class="device-toggle">
+              <button
+                class="device-btn"
+                :class="{ active: previewDevice === 'desktop' }"
+                @click="previewDevice = 'desktop'"
+                title="Desktop" aria-label="Vista desktop"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </button>
+              <button
+                class="device-btn"
+                :class="{ active: previewDevice === 'mobile' }"
+                @click="previewDevice = 'mobile'"
+                title="Mobile" aria-label="Vista mobile"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <div class="fo-preview-frame" :class="'frame--' + previewDevice">
@@ -393,7 +430,7 @@ function onSlotDragEnd() {
               :is="previewComponent"
               :images="previewImages"
               section-radius="12px"
-              marquee-speed="50s"
+              :marquee-speed="marqueeSpeedCss"
               :force-mode="previewDevice"
               :mobile-scroll="previewDevice === 'mobile'"
               :force-columns="previewMode === 'grid' && previewDevice === 'mobile' ? 1 : previewMode === 'grid' ? 3 : 0"
@@ -553,6 +590,14 @@ function onSlotDragEnd() {
 .fo-preview-wrap{margin-bottom:32px}
 
 .fo-preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+
+.preview-controls{display:flex;align-items:center;gap:12px}
+
+.speed-control{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 10px}
+.speed-label{font-size:11px;color:var(--text-secondary);white-space:nowrap;font-weight:600}
+.speed-slider{width:100px;accent-color:var(--primary);cursor:pointer}
+.speed-value{font-size:11px;font-weight:600;color:var(--text-primary);min-width:32px;text-align:right}
+.speed-save{font-size:10px;padding:2px 8px}
 
 .device-toggle{display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:2px}
 .device-btn{display:flex;align-items:center;justify-content:center;width:32px;height:28px;border:none;background:transparent;color:var(--text-light);border-radius:calc(var(--radius) - 2px);cursor:pointer;transition:all .15s}

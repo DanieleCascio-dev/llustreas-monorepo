@@ -263,8 +263,10 @@ watch([() => isMobile.value, () => props.images], async () => {
   -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
 }
 
-.gpc-marquee-wrap:hover .gpc-marquee-track {
-  animation-play-state: paused;
+@media (hover: hover) {
+  .gpc-marquee-wrap:hover .gpc-marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 .gpc-marquee-track {
