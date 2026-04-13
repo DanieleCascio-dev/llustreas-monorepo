@@ -11,6 +11,7 @@ const toast = useToast()
 const images = ref([])
 const loading = ref(true)
 const previewMode = ref('carousel')
+const previewDevice = ref('desktop')
 const uploading = ref(false)
 const recentlyRemoved = ref([])
 
@@ -365,13 +366,40 @@ function onSlotDragEnd() {
     <template v-else>
       <!-- ===== FRONTOFFICE PREVIEW ===== -->
       <div v-if="previewImages.length" class="fo-preview-wrap">
-        <h2 class="section-title">Anteprima frontoffice</h2>
-        <component
-          :is="previewComponent"
-          :images="previewImages"
-          section-radius="12px"
-          marquee-speed="50s"
-        />
+        <div class="fo-preview-header">
+          <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'desktop' }"
+              @click="previewDevice = 'desktop'"
+              title="Desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'mobile' }"
+              @click="previewDevice = 'mobile'"
+              title="Mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="fo-preview-frame" :class="'frame--' + previewDevice">
+          <div class="fo-preview-viewport">
+            <component
+              :is="previewComponent"
+              :images="previewImages"
+              section-radius="12px"
+              marquee-speed="50s"
+              :force-mode="previewDevice"
+              :mobile-scroll="previewDevice === 'mobile'"
+              :force-columns="previewMode === 'grid' && previewDevice === 'mobile' ? 1 : previewMode === 'grid' ? 3 : 0"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- ===== MANAGEMENT ===== -->
@@ -523,6 +551,20 @@ function onSlotDragEnd() {
 
 <style scoped>
 .fo-preview-wrap{margin-bottom:32px}
+
+.fo-preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+
+.device-toggle{display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:2px}
+.device-btn{display:flex;align-items:center;justify-content:center;width:32px;height:28px;border:none;background:transparent;color:var(--text-light);border-radius:calc(var(--radius) - 2px);cursor:pointer;transition:all .15s}
+.device-btn:hover{color:var(--text);background:var(--bg-main)}
+.device-btn.active{color:var(--primary);background:rgba(99,102,241,.1)}
+
+.fo-preview-frame{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#f8f8fa;transition:max-width .3s ease}
+.frame--desktop{max-width:100%}
+.frame--mobile{max-width:390px;margin:0 auto}
+
+.fo-preview-viewport{overflow:hidden}
+
 .mgmt-title{margin-bottom:16px}
 .page-desc{color:var(--text-light);font-size:14px;margin-bottom:24px}
 .counter{font-size:14px;font-weight:600;color:var(--text-light);background:var(--bg-card);padding:4px 12px;border-radius:var(--radius);border:1px solid var(--border)}

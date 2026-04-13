@@ -8,12 +8,15 @@ const props = defineProps({
   marqueeSpeed: { type: String, default: '50s' },
   thumbWidth: { type: Number, default: 400 },
   sectionRadius: { type: String, default: '0' },
+  forceMode: { type: String, default: null },
 })
 
 const emit = defineEmits(['imageClick'])
 
 const isMobile = ref(false)
 function checkMobile() {
+  if (props.forceMode === 'mobile') { isMobile.value = true; return }
+  if (props.forceMode === 'desktop') { isMobile.value = false; return }
   isMobile.value = props.mobileScroll && window.innerWidth < 576
 }
 
@@ -63,12 +66,12 @@ function scrollToDot(idx) {
 }
 
 onMounted(async () => {
+  checkMobile()
   if (props.mobileScroll) {
-    checkMobile()
     window.addEventListener('resize', checkMobile)
-    await nextTick()
-    if (isMobile.value) setupDotObserver()
   }
+  await nextTick()
+  if (isMobile.value) setupDotObserver()
 })
 
 onBeforeUnmount(() => {
@@ -76,6 +79,10 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', checkMobile)
   }
   if (dotObserver) dotObserver.disconnect()
+})
+
+watch(() => props.forceMode, () => {
+  checkMobile()
 })
 
 watch([() => isMobile.value, () => props.images], async () => {

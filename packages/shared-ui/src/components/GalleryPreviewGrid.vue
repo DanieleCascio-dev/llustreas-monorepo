@@ -1,10 +1,20 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   images: { type: Array, required: true },
   sectionRadius: { type: String, default: '0' },
+  forceColumns: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['imageClick'])
+
+const gridStyle = computed(() => {
+  if (props.forceColumns > 0) {
+    return { 'grid-template-columns': `repeat(${props.forceColumns}, 1fr)` }
+  }
+  return {}
+})
 </script>
 
 <template>
@@ -17,7 +27,7 @@ const emit = defineEmits(['imageClick'])
       <h1 class="gpg-title">Illustrazioni</h1>
     </slot>
 
-    <div class="gpg-grid">
+    <div class="gpg-grid" :class="{ 'gpg-grid--forced': forceColumns > 0 }" :style="gridStyle">
       <div
         v-for="item in images"
         :key="item.id"
@@ -132,5 +142,9 @@ const emit = defineEmits(['imageClick'])
 .gpg-item:active img {
   transform: scale(0.97);
   transition: transform 0.15s ease;
+}
+
+.gpg-grid--forced {
+  max-width: none !important;
 }
 </style>
