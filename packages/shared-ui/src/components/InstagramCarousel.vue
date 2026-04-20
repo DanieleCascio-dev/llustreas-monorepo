@@ -1,6 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
-import { useInstagramEmbed } from '../composables/useInstagramEmbed.js'
+import { computed, nextTick, onMounted, onUnmounted, watch, ref } from 'vue'
 
 const props = defineProps({
   posts: { type: Array, required: true },
@@ -13,41 +12,139 @@ const props = defineProps({
 
 const emit = defineEmits(['reorder'])
 
-const { loadEmbedScript, scheduleEmbed } = useInstagramEmbed()
-
-const isMobile = ref(false)
 const dragging = ref(null)
 const dropTarget = ref(null)
+const activeIndex = ref(0)
+const isViewportMobile = ref(false)
 
-function checkMobile() {
-  if (props.forceMode === 'mobile') { isMobile.value = true; return }
-  if (props.forceMode === 'desktop') { isMobile.value = false; return }
-  isMobile.value = props.mobileScroll && window.innerWidth < 768
+const normalizedPosts = computed(() =>
+  (props.posts || [])
+    .map((post) => ({
+      id: post.id,
+      url: normalizeInstagramUrl(post.url),
+    }))
+    .filter((post) => Boolean(post.url))
+)
+
+const isMobileCarousel = computed(() => {
+  if (props.forceMode === 'mobile') return true
+  if (props.forceMode === 'desktop') return false
+  return isViewportMobile.value
+})
+
+const canNavigate = computed(() => isMobileCarousel.value && normalizedPosts.value.length > 1)
+
+function normalizeInstagramUrl(url) {
+  if (!url) return ''
+
+  try {
+    const parsed = new URL(url)
+    const shortcodeMatch = parsed.pathname.match(/^\/(?:p|reel)\/([A-Za-z0-9_-]+)/)
+    if (!shortcodeMatch) return url
+
+    return `${parsed.origin}${parsed.pathname.replace(/\/?$/, '/')}`
+  } catch {
+    return url
+  }
 }
 
-const showMobileScroll = computed(() => isMobile.value)
+function loadInstagramEmbedScript() {
+  if (typeof window === 'undefined') return
 
-function onDragStart(e, postId) {
+  const processEmbeds = () => {
+    if (window.instgrm?.Embeds?.process) {
+      window.instgrm.Embeds.process()
+    }
+  }
+
+  const existingScript = document.querySelector('script[src="//www.instagram.com/embed.js"], script[src="https://www.instagram.com/embed.js"]')
+  if (existingScript) {
+    processEmbeds()
+    return
+  }
+
+  const script = document.createElement('script')
+  script.async = true
+  script.src = 'https://www.instagram.com/embed.js'
+  script.onload = processEmbeds
+  document.body.appendChild(script)
+}
+
+async function processEmbeds() {
+  await nextTick()
+  loadInstagramEmbedScript()
+}
+
+function checkViewport() {
+  if (typeof window === 'undefined') return
+  isViewportMobile.value = window.innerWidth <= 991
+}
+
+onMounted(() => {
+  checkViewport()
+  processEmbeds()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', checkViewport)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', checkViewport)
+  }
+})
+
+watch(normalizedPosts, processEmbeds, { deep: true })
+watch(() => props.forceMode, processEmbeds)
+
+watch(
+  normalizedPosts,
+  (posts) => {
+    if (activeIndex.value > posts.length - 1) {
+      activeIndex.value = Math.max(0, posts.length - 1)
+    }
+  },
+  { deep: true }
+)
+
+watch(activeIndex, processEmbeds)
+
+function goToPost(index) {
+  const total = normalizedPosts.value.length
+  if (!total) return
+  activeIndex.value = (index + total) % total
+}
+
+function previousPost() {
+  goToPost(activeIndex.value - 1)
+}
+
+function nextPost() {
+  goToPost(activeIndex.value + 1)
+}
+
+function onDragStart(event, postId) {
   if (!props.draggable) return
   dragging.value = postId
-  e.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', String(postId))
 }
 
-function onDragOver(e, postId) {
+function onDragOver(event, postId) {
   if (!props.draggable) return
-  e.preventDefault()
-  if (postId !== dragging.value) dropTarget.value = postId
-}
-
-function onDragLeave() {
-  dropTarget.value = null
+  event.preventDefault()
+  if (postId !== dragging.value) {
+    dropTarget.value = postId
+  }
 }
 
 function onDrop(targetId) {
+  if (!props.draggable) return
+  const fromId = dragging.value
   dropTarget.value = null
-  if (dragging.value === null || dragging.value === targetId) return
-  emit('reorder', dragging.value, targetId)
   dragging.value = null
+  if (fromId === null || fromId === targetId) return
+  emit('reorder', fromId, targetId)
 }
 
 function onDragEnd() {
@@ -55,36 +152,21 @@ function onDragEnd() {
   dropTarget.value = null
 }
 
-onMounted(() => {
-  checkMobile()
-  if (props.mobileScroll) {
-    window.addEventListener('resize', checkMobile)
-  }
-  if (props.posts.length) loadEmbedScript()
-})
-
-onBeforeUnmount(() => {
-  if (props.mobileScroll) {
-    window.removeEventListener('resize', checkMobile)
-  }
-})
-
-watch(() => props.forceMode, () => {
-  checkMobile()
-  scheduleEmbed()
-})
-watch(() => props.posts, () => scheduleEmbed(), { deep: true })
-watch(isMobile, () => scheduleEmbed())
+function onDragLeave() {
+  dropTarget.value = null
+}
 </script>
 
 <template>
   <div
-    v-if="posts.length"
+    v-if="normalizedPosts.length"
     class="ig-section"
-    :style="{
-      '--ig-section-radius': sectionRadius,
-      '--ig-marquee-speed': marqueeSpeed,
+    :class="{
+      'ig-section--mobile': forceMode === 'mobile',
+      'ig-section--carousel': isMobileCarousel,
+      'ig-section--draggable': draggable,
     }"
+    :style="{ '--ig-section-radius': sectionRadius }"
   >
     <slot name="title">
       <h1 class="ig-title">
@@ -102,69 +184,70 @@ watch(isMobile, () => scheduleEmbed())
       </h1>
     </slot>
 
-    <!-- Mobile: native horizontal scroll -->
-    <div v-if="showMobileScroll" class="ig-scroll">
-      <div v-for="post in posts" :key="'m-' + post.id" class="ig-embed-card">
+    <div class="ig-carousel-shell">
+      <button
+        v-if="canNavigate"
+        type="button"
+        class="ig-carousel-button ig-carousel-button--prev"
+        aria-label="Post precedente"
+        @click="previousPost"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15.5 4.5 8 12l7.5 7.5" />
+        </svg>
+      </button>
+
+      <button
+        v-if="canNavigate"
+        type="button"
+        class="ig-carousel-button ig-carousel-button--next"
+        aria-label="Post successivo"
+        @click="nextPost"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m8.5 4.5 7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+
+      <div
+        class="ig-post-grid"
+        :style="isMobileCarousel ? { '--ig-active-index': activeIndex } : null"
+      >
+      <article
+        v-for="post in normalizedPosts"
+        :key="post.id"
+        class="ig-post-card"
+        :class="{ 'ig-post-card--drop': dropTarget === post.id }"
+        :draggable="draggable"
+        @dragstart="onDragStart($event, post.id)"
+        @dragover="onDragOver($event, post.id)"
+        @dragleave="onDragLeave"
+        @drop="onDrop(post.id)"
+        @dragend="onDragEnd"
+      >
+        <div v-if="draggable" class="ig-drag-handle" aria-hidden="true">::</div>
         <blockquote
           class="instagram-media"
           :data-instgrm-permalink="post.url"
           data-instgrm-version="14"
-        />
+        >
+          <a :href="post.url" target="_blank" rel="noopener noreferrer">View this post on Instagram</a>
+        </blockquote>
+      </article>
       </div>
     </div>
 
-    <!-- Desktop / always: infinite marquee -->
-    <div v-else class="ig-marquee-wrap">
-      <div
-        class="ig-marquee-track"
-        :class="{ 'ig-marquee-paused': draggable && dragging }"
-      >
-        <div
-          v-for="post in posts"
-          :key="'a-' + post.id"
-          class="ig-embed-card"
-          :class="{
-            'ig-embed-card--draggable': draggable,
-            'ig-embed-card--dragging': draggable && dragging === post.id,
-            'ig-embed-card--drop': draggable && dropTarget === post.id,
-          }"
-          :draggable="draggable ? 'true' : undefined"
-          @dragstart="onDragStart($event, post.id)"
-          @dragover="onDragOver($event, post.id)"
-          @dragleave="onDragLeave"
-          @drop="onDrop(post.id)"
-          @dragend="onDragEnd"
-        >
-          <blockquote
-            class="instagram-media"
-            :data-instgrm-permalink="post.url"
-            data-instgrm-version="14"
-          />
-        </div>
-        <div
-          v-for="post in posts"
-          :key="'b-' + post.id"
-          class="ig-embed-card"
-          :class="{
-            'ig-embed-card--draggable': draggable,
-            'ig-embed-card--dragging': draggable && dragging === post.id,
-            'ig-embed-card--drop': draggable && dropTarget === post.id,
-          }"
-          aria-hidden="true"
-          :draggable="draggable ? 'true' : undefined"
-          @dragstart="onDragStart($event, post.id)"
-          @dragover="onDragOver($event, post.id)"
-          @dragleave="onDragLeave"
-          @drop="onDrop(post.id)"
-          @dragend="onDragEnd"
-        >
-          <blockquote
-            class="instagram-media"
-            :data-instgrm-permalink="post.url"
-            data-instgrm-version="14"
-          />
-        </div>
-      </div>
+    <div v-if="canNavigate" class="ig-carousel-dots" aria-label="Seleziona post Instagram">
+      <button
+        v-for="(post, index) in normalizedPosts"
+        :key="`dot-${post.id}`"
+        type="button"
+        class="ig-carousel-dot"
+        :class="{ 'ig-carousel-dot--active': index === activeIndex }"
+        :aria-label="`Vai al post ${index + 1}`"
+        :aria-current="index === activeIndex ? 'true' : null"
+        @click="goToPost(index)"
+      />
     </div>
   </div>
 </template>
@@ -173,14 +256,14 @@ watch(isMobile, () => scheduleEmbed())
 .ig-section {
   background-color: var(--ig-bg, #8472ac);
   color: var(--ig-text, white);
-  padding: 40px 0 60px;
+  padding: 40px 16px 60px;
   border-radius: var(--ig-section-radius, 0);
   overflow: hidden;
 }
 
 @media (min-width: 768px) {
   .ig-section {
-    padding: 48px 0 72px;
+    padding: 48px 24px 72px;
   }
 }
 
@@ -217,109 +300,173 @@ watch(isMobile, () => scheduleEmbed())
   height: 0.7em;
 }
 
-/* ── Mobile: native horizontal scroll ── */
-.ig-scroll {
-  display: flex;
-  gap: 16px;
-  padding: 0 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+.ig-post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
-.ig-scroll::-webkit-scrollbar {
+.ig-carousel-shell {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.ig-carousel-button {
   display: none;
 }
 
-.ig-scroll .ig-embed-card {
-  flex: 0 0 85vw;
-  max-width: 400px;
-  min-width: 280px;
-  scroll-snap-align: center;
+.ig-carousel-dots {
+  display: none;
 }
 
-/* ── Desktop: infinite marquee ── */
-.ig-marquee-wrap {
-  width: 100%;
+.ig-section--carousel .ig-carousel-shell {
   overflow: hidden;
-  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+  width: min(100%, 470px);
+  max-width: calc(100vw - 32px);
 }
 
-@media (hover: hover) {
-  .ig-marquee-wrap:hover .ig-marquee-track {
-    animation-play-state: paused;
-  }
-}
-
-.ig-marquee-track {
+.ig-section--carousel .ig-post-grid {
   display: flex;
-  gap: 20px;
-  width: max-content;
-  animation: ig-marquee var(--ig-marquee-speed, 80s) linear infinite;
+  gap: 0;
+  max-width: none;
+  transform: translateX(calc(var(--ig-active-index, 0) * -100%));
+  transition: transform 0.35s ease;
 }
 
-.ig-marquee-track.ig-marquee-paused {
-  animation-play-state: paused;
+.ig-section--carousel .ig-post-card {
+  flex: 0 0 100%;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  justify-content: center;
 }
 
-@keyframes ig-marquee {
-  0% {
-    transform: translateX(0);
+.ig-section--carousel .ig-carousel-button {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #262626;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.ig-section--carousel .ig-carousel-button--prev {
+  left: 8px;
+}
+
+.ig-section--carousel .ig-carousel-button--next {
+  right: 8px;
+}
+
+.ig-section--carousel .ig-carousel-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ig-section--carousel .ig-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.ig-section--carousel .ig-carousel-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+.ig-section--carousel .ig-carousel-dot--active {
+  background: #fff;
+}
+
+@media (max-width: 991px) {
+  .ig-section:not(.ig-section--carousel) .ig-post-grid {
+    grid-template-columns: 1fr;
   }
-  100% {
-    transform: translateX(-50%);
-  }
 }
 
-.ig-embed-card {
-  flex: 0 0 auto;
-  width: 320px;
-  border: 3px solid transparent;
-  border-radius: 14px;
-  transition: border-color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+.ig-post-card {
+  position: relative;
+  min-width: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  color: #262626;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-@media (min-width: 1200px) {
-  .ig-embed-card {
-    width: 350px;
-  }
-}
-
-/* Draggable-specific styles */
-.ig-embed-card--draggable {
+.ig-section--draggable .ig-post-card {
   cursor: grab;
 }
 
-.ig-embed-card--draggable:active {
+.ig-section--draggable .ig-post-card:active {
   cursor: grabbing;
 }
 
-.ig-embed-card--dragging {
-  opacity: 0.4;
+.ig-post-card--drop {
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
 }
 
-.ig-embed-card--drop {
-  border-color: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
-  transform: scale(1.03);
+@media (hover: hover) {
+  .ig-post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+  }
 }
 
-/* ── Embed overrides ── */
-.ig-embed-card :deep(iframe) {
-  border-radius: 12px !important;
-  min-width: 100% !important;
-}
-
-.ig-embed-card--draggable :deep(iframe) {
+.ig-drag-handle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 1px;
   pointer-events: none;
 }
 
-.ig-embed-card :deep(.instagram-media) {
-  margin: 0 !important;
-  width: 100% !important;
-  min-width: unset !important;
+.instagram-media {
   max-width: 100% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.ig-section--carousel .instagram-media {
+  margin: 0 auto !important;
 }
 </style>

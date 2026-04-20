@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { instagram, settings } from '../services/api'
+import { computed, onMounted, ref } from 'vue'
+import { instagram } from '../services/api'
 import { useToast } from '../composables/useToast'
 import InstagramPreview from '../components/InstagramPreview.vue'
 
@@ -11,15 +11,13 @@ const loading = ref(true)
 const newUrl = ref('')
 const adding = ref(false)
 const previewDevice = ref('desktop')
-const marqueeSpeed = ref(80)
-const savingSpeed = ref(false)
-
 const expandedPosts = ref(new Set())
-const embedKeys = ref({})
-
 const confirmModal = ref({ show: false, post: null })
 
-const activePosts = computed(() => posts.value.filter(p => p.active))
+const listDragging = ref(null)
+const listDropTarget = ref(null)
+
+const activePosts = computed(() => posts.value.filter((post) => post.active))
 
 async function load() {
   loading.value = true
@@ -33,28 +31,7 @@ async function load() {
   }
 }
 
-const marqueeSpeedCss = computed(() => marqueeSpeed.value + 's')
-
-onMounted(async () => {
-  await load()
-  loadEmbedScript()
-  try {
-    const { data } = await settings.get('instagram_marquee_speed')
-    if (data.value) marqueeSpeed.value = Number(data.value) || 80
-  } catch { /* keep default */ }
-})
-
-async function saveSpeed() {
-  savingSpeed.value = true
-  try {
-    await settings.update('instagram_marquee_speed', marqueeSpeed.value)
-    toast.success('Velocità salvata')
-  } catch {
-    toast.error('Errore salvataggio velocità')
-  } finally {
-    savingSpeed.value = false
-  }
-}
+onMounted(load)
 
 function extractPostId(url) {
   const match = url.match(/instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/)
@@ -75,15 +52,10 @@ async function addPost() {
     const { data } = await instagram.create({ url })
     posts.value.push(data)
     newUrl.value = ''
-    const s = new Set(expandedPosts.value)
-    s.add(data.id)
-    expandedPosts.value = s
-    embedKeys.value[data.id] = 1
-    toast.success('Post aggiunto!')
-    await nextTick()
-    scheduleEmbed()
+    expandedPosts.value = new Set([...expandedPosts.value, data.id])
+    toast.success('Post aggiunto')
   } catch {
-    toast.error('Errore durante l\'aggiunta del post')
+    toast.error("Errore durante l'aggiunta del post")
   } finally {
     adding.value = false
   }
@@ -92,7 +64,7 @@ async function addPost() {
 async function toggleActive(post) {
   try {
     const { data } = await instagram.update(post.id, { active: !post.active })
-    const idx = posts.value.findIndex(p => p.id === post.id)
+    const idx = posts.value.findIndex((p) => p.id === post.id)
     if (idx >= 0) posts.value[idx] = data
   } catch {
     toast.error('Errore aggiornamento stato')
@@ -110,10 +82,11 @@ function closeConfirm() {
 async function confirmRemovePost() {
   const post = confirmModal.value.post
   if (!post) return
+
   closeConfirm()
   try {
     await instagram.delete(post.id)
-    posts.value = posts.value.filter(p => p.id !== post.id)
+    posts.value = posts.value.filter((item) => item.id !== post.id)
     toast.success('Post rimosso')
   } catch {
     toast.error('Errore durante la rimozione')
@@ -121,22 +94,14 @@ async function confirmRemovePost() {
 }
 
 function toggleExpand(postId) {
-  const s = new Set(expandedPosts.value)
-  if (s.has(postId)) {
-    s.delete(postId)
-  } else {
-    s.add(postId)
-    embedKeys.value[postId] = (embedKeys.value[postId] || 0) + 1
-  }
-  expandedPosts.value = s
+  const next = new Set(expandedPosts.value)
+  if (next.has(postId)) next.delete(postId)
+  else next.add(postId)
+  expandedPosts.value = next
 }
 
 function expandAll() {
-  posts.value.forEach(p => {
-    embedKeys.value[p.id] = (embedKeys.value[p.id] || 0) + 1
-  })
-  expandedPosts.value = new Set(posts.value.map(p => p.id))
-  nextTick(() => scheduleEmbed())
+  expandedPosts.value = new Set(posts.value.map((post) => post.id))
 }
 
 function collapseAll() {
@@ -144,15 +109,15 @@ function collapseAll() {
 }
 
 async function onPreviewReorder(fromId, toId) {
-  const fromIdx = posts.value.findIndex(p => p.id === fromId)
-  const toIdx = posts.value.findIndex(p => p.id === toId)
+  const fromIdx = posts.value.findIndex((post) => post.id === fromId)
+  const toIdx = posts.value.findIndex((post) => post.id === toId)
   if (fromIdx < 0 || toIdx < 0) return
 
   const temp = posts.value[fromIdx]
   posts.value[fromIdx] = posts.value[toIdx]
   posts.value[toIdx] = temp
 
-  const order = posts.value.map((p, i) => ({ id: p.id, order: i }))
+  const order = posts.value.map((post, index) => ({ id: post.id, order: index }))
   try {
     await instagram.reorder(order)
   } catch {
@@ -161,61 +126,46 @@ async function onPreviewReorder(fromId, toId) {
   }
 }
 
-// --- Accordion drag & drop (swap) ---
+function onListDragStart(id) {
+  listDragging.value = id
+}
 
-const listDragging = ref(null)
-const listDropTarget = ref(null)
+function onListDragOver(event, id) {
+  event.preventDefault()
+  listDropTarget.value = id
+}
 
-function onListDragStart(id) { listDragging.value = id }
-function onListDragOver(e, id) { e.preventDefault(); listDropTarget.value = id }
-function onListDragLeave() { listDropTarget.value = null }
+function onListDragLeave() {
+  listDropTarget.value = null
+}
+
 async function onListDrop(targetId) {
   listDropTarget.value = null
   if (listDragging.value === null || listDragging.value === targetId) return
 
-  const fromIdx = posts.value.findIndex(p => p.id === listDragging.value)
-  const toIdx = posts.value.findIndex(p => p.id === targetId)
+  const fromIdx = posts.value.findIndex((post) => post.id === listDragging.value)
+  const toIdx = posts.value.findIndex((post) => post.id === targetId)
   if (fromIdx < 0 || toIdx < 0) return
 
   const temp = posts.value[fromIdx]
   posts.value[fromIdx] = posts.value[toIdx]
   posts.value[toIdx] = temp
 
-  const order = posts.value.map((p, i) => ({ id: p.id, order: i }))
+  const order = posts.value.map((post, index) => ({ id: post.id, order: index }))
   try {
     await instagram.reorder(order)
   } catch {
     toast.error('Errore riordinamento')
     await load()
   }
+
   listDragging.value = null
 }
-function onListDragEnd() { listDragging.value = null; listDropTarget.value = null }
 
-// --- Embed script ---
-
-function loadEmbedScript() {
-  if (document.querySelector('script[src*="instagram.com/embed.js"]')) {
-    reloadEmbed()
-    return
-  }
-  const script = document.createElement('script')
-  script.src = '//www.instagram.com/embed.js'
-  script.async = true
-  script.onload = () => reloadEmbed()
-  document.head.appendChild(script)
+function onListDragEnd() {
+  listDragging.value = null
+  listDropTarget.value = null
 }
-
-function reloadEmbed() {
-  if (window.instgrm) window.instgrm.Embeds.process()
-}
-
-function scheduleEmbed() {
-  nextTick(() => setTimeout(reloadEmbed, 150))
-}
-
-watch(posts, scheduleEmbed, { deep: true })
-watch(expandedPosts, scheduleEmbed)
 </script>
 
 <template>
@@ -223,61 +173,42 @@ watch(expandedPosts, scheduleEmbed)
     <h1 class="page-title">Instagram</h1>
     <p class="page-subtitle">Gestisci i post Instagram da mostrare sul sito. Trascina le card nella preview per riordinare.</p>
 
-    <!-- Loading -->
     <div v-if="loading" class="loading-state">Caricamento...</div>
 
     <template v-else>
-      <!-- ===== FRONTOFFICE PREVIEW ===== -->
       <div v-if="activePosts.length" class="preview-wrap">
         <div class="preview-header">
-          <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
-          <div class="preview-controls">
-            <div class="speed-control">
-              <label class="speed-label">Velocità</label>
-              <input
-                type="range"
-                class="speed-slider"
-                v-model.number="marqueeSpeed"
-                min="20"
-                max="200"
-                step="5"
-              />
-              <span class="speed-value">{{ marqueeSpeed }}s</span>
-              <button class="btn btn-sm btn-primary speed-save" :disabled="savingSpeed" @click="saveSpeed">
-                {{ savingSpeed ? '...' : 'Salva' }}
-              </button>
-            </div>
-            <div class="device-toggle">
-              <button
-                class="device-btn"
-                :class="{ active: previewDevice === 'desktop' }"
-                @click="previewDevice = 'desktop'"
-                title="Desktop" aria-label="Vista desktop"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </button>
-              <button
-                class="device-btn"
-                :class="{ active: previewDevice === 'mobile' }"
-                @click="previewDevice = 'mobile'"
-                title="Mobile" aria-label="Vista mobile"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              </button>
-            </div>
+          <h2 class="section-title" style="margin-bottom: 0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'desktop' }"
+              @click="previewDevice = 'desktop'"
+              title="Desktop"
+              aria-label="Vista desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'mobile' }"
+              @click="previewDevice = 'mobile'"
+              title="Mobile"
+              aria-label="Vista mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2" /><line x1="12" y1="18" x2="12.01" y2="18" /></svg>
+            </button>
           </div>
         </div>
         <div class="preview-frame" :class="'frame--' + previewDevice">
           <InstagramPreview
             :posts="activePosts"
             :force-mode="previewDevice"
-            :marquee-speed="marqueeSpeedCss"
             @reorder="onPreviewReorder"
           />
         </div>
       </div>
 
-      <!-- ===== MANAGEMENT SECTION ===== -->
       <div class="mgmt-section">
         <h2 class="section-title">Gestione post</h2>
 
@@ -300,8 +231,8 @@ watch(expandedPosts, scheduleEmbed)
 
         <template v-else>
           <div class="bulk-actions">
-            <button class="btn btn-sm btn-ghost" @click="expandAll">▼ Espandi tutti</button>
-            <button class="btn btn-sm btn-ghost" @click="collapseAll">▲ Comprimi tutti</button>
+            <button class="btn btn-sm btn-ghost" @click="expandAll">Espandi tutti</button>
+            <button class="btn btn-sm btn-ghost" @click="collapseAll">Comprimi tutti</button>
             <span class="post-count">{{ posts.length }} post</span>
           </div>
 
@@ -318,13 +249,13 @@ watch(expandedPosts, scheduleEmbed)
               }"
               draggable="true"
               @dragstart="onListDragStart(post.id)"
-              @dragover="(e) => onListDragOver(e, post.id)"
+              @dragover="(event) => onListDragOver(event, post.id)"
               @dragleave="onListDragLeave"
               @drop="onListDrop(post.id)"
               @dragend="onListDragEnd"
             >
               <div class="post-header" @click="toggleExpand(post.id)">
-                <span class="drag-handle" title="Trascina per riordinare" @click.stop>⠿</span>
+                <span class="drag-handle" title="Trascina per riordinare" @click.stop>⋮⋮</span>
                 <span class="accordion-arrow" :class="{ open: expandedPosts.has(post.id) }">▶</span>
                 <span class="post-url" :title="post.url">{{ post.url }}</span>
                 <div class="post-actions" @click.stop>
@@ -334,20 +265,16 @@ watch(expandedPosts, scheduleEmbed)
                     @click="toggleActive(post)"
                     :title="post.active ? 'Disattiva' : 'Attiva'"
                   >
-                    {{ post.active ? '👁' : '👁‍🗨' }}
+                    {{ post.active ? 'On' : 'Off' }}
                   </button>
-                  <button class="btn btn-sm btn-danger" @click="askRemovePost(post)" title="Rimuovi">✕</button>
+                  <button class="btn btn-sm btn-danger" @click="askRemovePost(post)" title="Rimuovi">×</button>
                 </div>
               </div>
 
-              <div v-if="expandedPosts.has(post.id)" class="post-embed" :key="'embed-' + post.id + '-' + (embedKeys[post.id] || 0)">
-                <blockquote
-                  class="instagram-media"
-                  :data-instgrm-permalink="post.url"
-                  data-instgrm-version="14"
-                  data-instgrm-captioned
-                  style="max-width:100%;width:100%"
-                />
+              <div v-if="expandedPosts.has(post.id)" class="post-details">
+                <a :href="post.url" target="_blank" rel="noopener noreferrer" class="post-open-link">
+                  Apri post su Instagram
+                </a>
               </div>
             </div>
           </div>
@@ -383,6 +310,7 @@ watch(expandedPosts, scheduleEmbed)
   color: var(--text-primary);
   margin-bottom: 4px;
 }
+
 .page-subtitle {
   color: var(--text-secondary);
   font-size: 14px;
@@ -410,44 +338,6 @@ watch(expandedPosts, scheduleEmbed)
   gap: 12px;
 }
 
-.preview-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.speed-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 4px 10px;
-}
-.speed-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  font-weight: 600;
-}
-.speed-slider {
-  width: 100px;
-  accent-color: var(--primary);
-  cursor: pointer;
-}
-.speed-value {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 32px;
-  text-align: right;
-}
-.speed-save {
-  font-size: 10px;
-  padding: 2px 8px;
-}
-
 .device-toggle {
   display: flex;
   gap: 2px;
@@ -456,6 +346,7 @@ watch(expandedPosts, scheduleEmbed)
   border-radius: var(--radius);
   padding: 2px;
 }
+
 .device-btn {
   display: flex;
   align-items: center;
@@ -467,15 +358,17 @@ watch(expandedPosts, scheduleEmbed)
   color: var(--text-secondary);
   border-radius: calc(var(--radius) - 2px);
   cursor: pointer;
-  transition: all .15s;
+  transition: all 0.15s;
 }
+
 .device-btn:hover {
   color: var(--text-primary);
   background: var(--bg-main);
 }
+
 .device-btn.active {
   color: var(--primary);
-  background: rgba(99,102,241,.1);
+  background: rgba(99, 102, 241, 0.1);
 }
 
 .preview-frame {
@@ -483,20 +376,17 @@ watch(expandedPosts, scheduleEmbed)
   border-radius: 12px;
   overflow: hidden;
   background: #f8f8fa;
-  transition: max-width .3s ease;
+  transition: max-width 0.3s ease;
   contain: inline-size;
 }
+
 .frame--desktop {
   max-width: 100%;
 }
+
 .frame--mobile {
   max-width: 390px;
   margin: 0 auto;
-}
-
-/* ===== MANAGEMENT SECTION ===== */
-.mgmt-section {
-  margin-top: 0;
 }
 
 .section-title {
@@ -511,6 +401,7 @@ watch(expandedPosts, scheduleEmbed)
   gap: 12px;
   margin-bottom: 24px;
 }
+
 .add-form .input {
   flex: 1;
   padding: 10px 14px;
@@ -520,6 +411,7 @@ watch(expandedPosts, scheduleEmbed)
   color: var(--text-primary);
   font-size: 14px;
 }
+
 .add-form .input:focus {
   outline: none;
   border-color: var(--primary);
@@ -531,6 +423,7 @@ watch(expandedPosts, scheduleEmbed)
   gap: 8px;
   margin-bottom: 16px;
 }
+
 .post-count {
   margin-left: auto;
   font-size: 13px;
@@ -551,12 +444,19 @@ watch(expandedPosts, scheduleEmbed)
   overflow: hidden;
   transition: border-color 0.2s, opacity 0.2s, box-shadow 0.2s;
 }
-.post-card--dragging { opacity: 0.5; }
+
+.post-card--dragging {
+  opacity: 0.5;
+}
+
 .post-card--drop {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary);
 }
-.post-card.inactive { opacity: 0.5; }
+
+.post-card.inactive {
+  opacity: 0.5;
+}
 
 .post-header {
   display: flex;
@@ -567,9 +467,11 @@ watch(expandedPosts, scheduleEmbed)
   user-select: none;
   transition: background 0.15s;
 }
+
 .post-header:hover {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
 }
+
 .post-card.expanded .post-header {
   border-bottom: 1px solid var(--border);
 }
@@ -580,15 +482,18 @@ watch(expandedPosts, scheduleEmbed)
   transition: transform 0.2s;
   flex-shrink: 0;
 }
+
 .accordion-arrow.open {
   transform: rotate(90deg);
 }
+
 .drag-handle {
   cursor: grab;
-  font-size: 18px;
+  font-size: 15px;
   color: var(--text-secondary);
   user-select: none;
 }
+
 .post-url {
   flex: 1;
   font-size: 12px;
@@ -597,22 +502,25 @@ watch(expandedPosts, scheduleEmbed)
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .post-actions {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
 }
 
-.post-embed {
+.post-details {
   padding: 12px;
-  min-height: 200px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  overflow: hidden;
 }
-.post-embed :deep(iframe) {
-  border-radius: 8px !important;
+
+.post-open-link {
+  color: var(--primary);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.post-open-link:hover {
+  text-decoration: underline;
 }
 
 .btn-danger {
@@ -620,6 +528,7 @@ watch(expandedPosts, scheduleEmbed)
   border: 1px solid var(--danger, #e53e3e);
   color: var(--danger, #e53e3e);
 }
+
 .btn-danger:hover {
   background: var(--danger, #e53e3e);
   color: white;
@@ -630,37 +539,42 @@ watch(expandedPosts, scheduleEmbed)
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.45);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
+
 .confirm-modal {
   background: var(--bg-card);
   border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 24px 48px rgba(0,0,0,.2);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-width: 420px;
   overflow: hidden;
 }
+
 .confirm-body {
   padding: 24px;
   text-align: center;
 }
+
 .confirm-body p {
   margin: 0 0 8px;
   font-size: 14px;
   color: var(--text-primary);
   line-height: 1.5;
 }
+
 .confirm-url {
   display: block;
   font-size: 12px;
   color: var(--text-secondary);
   word-break: break-all;
 }
+
 .confirm-footer {
   display: flex;
   justify-content: flex-end;

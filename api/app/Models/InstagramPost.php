@@ -12,11 +12,13 @@ class InstagramPost extends Model
     protected $fillable = [
         'url',
         'thumbnail',
+        'media',
         'order',
         'active',
     ];
 
     protected $casts = [
+        'media' => 'array',
         'order' => 'integer',
         'active' => 'boolean',
     ];

@@ -1,5 +1,15 @@
 <script setup>
 const year = new Date().getFullYear()
+
+const emailParts = ['illust.reas', 'gmail', 'com']
+
+function emailAddress() {
+  return `${emailParts[0]}@${emailParts[1]}.${emailParts[2]}`
+}
+
+function openEmail() {
+  window.location.href = `mailto:${emailAddress()}`
+}
 </script>
 
 <template>
@@ -10,7 +20,9 @@ const year = new Date().getFullYear()
         <p class="text-custom">
           Scrivimi:<br />
           <strong>
-            <a href="mailto:illust.reas@gmail.com" target="_blank" rel="noopener noreferrer" class="text-custom">illust.reas@gmail.com</a>
+            <button type="button" class="email-link text-custom" @click="openEmail">
+              <span>{{ emailParts[0] }}</span><span aria-hidden="true">@</span><span>{{ emailParts[1] }}</span><span aria-hidden="true">.</span><span>{{ emailParts[2] }}</span>
+            </button>
           </strong>
         </p>
       </div>
@@ -74,7 +86,8 @@ const year = new Date().getFullYear()
 }
 
 .footer-contact {
-  a {
+  a,
+  .email-link {
     color: $bg-light;
     text-decoration: none;
 
@@ -87,6 +100,15 @@ const year = new Date().getFullYear()
         text-decoration: underline;
       }
     }
+  }
+
+  .email-link {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
   }
 }
 

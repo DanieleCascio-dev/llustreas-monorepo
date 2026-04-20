@@ -100,7 +100,7 @@ class PublicController extends Controller
 
     public function instagram(): JsonResponse
     {
-        $posts = InstagramPost::active()->ordered()->get(['id', 'url', 'thumbnail']);
+        $posts = InstagramPost::active()->ordered()->get(['id', 'url', 'thumbnail', 'media']);
 
         return response()->json($posts);
     }
