@@ -170,6 +170,14 @@ function dismissRemoved(removed) {
   recentlyRemoved.value = recentlyRemoved.value.filter(x => x !== removed)
 }
 
+async function updateTitle(img) {
+  try {
+    await gallery.update(img.id, { title: img.title })
+  } catch {
+    toast.error('Errore salvataggio titolo')
+  }
+}
+
 // --- Native HTML5 Drag & Drop (swap, purple borders) ---
 
 const draggingId = ref(null)
@@ -394,7 +402,14 @@ function onItemDragEnd() {
             >
               <img :src="img.src" class="gallery-thumb" draggable="false" />
               <div class="gallery-item-overlay">
-                <span class="gallery-item-title">{{ img.title }}</span>
+                <input
+                  class="gallery-title-input"
+                  v-model="img.title"
+                  placeholder="Titolo..."
+                  @blur="updateTitle(img)"
+                  @click.stop
+                  @keydown.enter="updateTitle(img)"
+                />
                 <div class="gallery-item-actions">
                   <button class="btn btn-sm btn-danger" @click="requestRemove(img)">&#10005;</button>
                 </div>
@@ -495,8 +510,11 @@ function onItemDragEnd() {
 .item--drop-target{border-color:var(--primary) !important;box-shadow:0 0 0 2px rgba(99,102,241,.18);background:rgba(99,102,241,.04)}
 
 .gallery-thumb{width:100%;max-height:100px;object-fit:cover;display:block;pointer-events:none}
-.gallery-item-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));padding:4px 6px;display:flex;align-items:end;justify-content:space-between;opacity:0;transition:opacity var(--transition);pointer-events:none}
+.gallery-item-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));padding:4px 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:4px;opacity:0;transition:opacity var(--transition);pointer-events:none}
 .gallery-item:hover .gallery-item-overlay{opacity:1}
+.gallery-title-input{flex:1;border:0;padding:4px 6px;font-size:10px;background:rgba(0,0,0,.3);color:#fff;outline:none;border-radius:2px;transition:background .15s;pointer-events:auto}
+.gallery-title-input::placeholder{color:rgba(255,255,255,.5)}
+.gallery-title-input:focus{background:rgba(0,0,0,.6)}
 .gallery-item-title{color:#fff;font-size:10px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gallery-item-actions{display:flex;gap:2px;pointer-events:auto}
 
