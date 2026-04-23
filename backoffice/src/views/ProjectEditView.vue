@@ -115,6 +115,21 @@ function openPreview() {
   window.open(`${frontofficeUrl}/project/${slug}`, '_blank')
 }
 
+function mapParagraph(p) {
+  const id = p.id != null ? p.id : undefined
+  return {
+    id,
+    clientKey: id ? undefined : crypto.randomUUID(),
+    title: p.title || '',
+    text: p.text || '',
+    text_html: p.text_html || '',
+  }
+}
+
+function paragraphRowKey(p) {
+  return p.id ?? p.clientKey
+}
+
 function normalizeImage(img) {
   if (img.type === 'text_image_block') {
     const tb = img.text_block || {}
@@ -130,11 +145,7 @@ function normalizeImage(img) {
         background_color: tb.background_color || '#ffffff',
         layout: tb.layout || 'text-left',
         image_position: tb.image_position || '',
-        paragraphs: (tb.paragraphs || []).map(p => ({
-          title: p.title || '',
-          text: p.text || '',
-          text_html: p.text_html || '',
-        })),
+        paragraphs: (tb.paragraphs || []).map(mapParagraph),
       },
     }
   }
@@ -161,18 +172,36 @@ async function save() {
   }
 }
 
+async function persistOrder() {
+  const order = images.value.map((im, i) => ({ id: im.id, order: i }))
+  await projectImages.reorder(route.params.id, order)
+}
+
 async function addImage() {
-  if (!isEdit.value) return
-  try {
-    const { data } = await projectImages.create(route.params.id, { type: 'image', src: '' })
-    images.value.push(normalizeImage(data))
-    toast.success('Immagine aggiunta')
-  } catch (e) {
-    toast.error('Errore: ' + (e.response?.data?.message || e.message))
-  }
+  await addImageAt(images.value.length)
 }
 
 async function addTextBlock() {
+  await addTextBlockAt(images.value.length)
+}
+
+async function addImageAt(insertIndex) {
+  if (!isEdit.value) return
+  try {
+    const { data } = await projectImages.create(route.params.id, { type: 'image', src: '' })
+    const normalized = normalizeImage(data)
+    const idx = Math.max(0, Math.min(insertIndex, images.value.length))
+    images.value.splice(idx, 0, normalized)
+    await persistOrder()
+    openActionsMenuIndex.value = null
+    toast.success('Immagine aggiunta')
+  } catch (e) {
+    toast.error('Errore: ' + (e.response?.data?.message || e.message))
+    await load()
+  }
+}
+
+async function addTextBlockAt(insertIndex) {
   if (!isEdit.value) return
   const payload = {
     type: 'text_image_block',
@@ -188,10 +217,31 @@ async function addTextBlock() {
   }
   try {
     const { data } = await projectImages.create(route.params.id, payload)
-    images.value.push(normalizeImage(data))
+    const normalized = normalizeImage(data)
+    const idx = Math.max(0, Math.min(insertIndex, images.value.length))
+    images.value.splice(idx, 0, normalized)
+    await persistOrder()
+    openActionsMenuIndex.value = null
     toast.success('Blocco testo aggiunto')
   } catch (e) {
     toast.error('Errore: ' + (e.response?.data?.message || e.message))
+    await load()
+  }
+}
+
+function textBlockPayload(tb) {
+  return {
+    subtitle: tb.subtitle || '',
+    title: tb.title || '',
+    text_color: tb.text_color || '#000000',
+    background_color: tb.background_color || '#ffffff',
+    layout: tb.layout || 'text-left',
+    image_position: tb.image_position || '',
+    paragraphs: (tb.paragraphs || []).map((p) => ({
+      title: p.title || '',
+      text: p.text || '',
+      text_html: p.text_html || '',
+    })),
   }
 }
 
@@ -199,10 +249,13 @@ async function updateImage(img, index) {
   if (!img.id) return
   const payload = { src: img.src }
   if (img.type === 'text_image_block') {
-    payload.text_block = img.text_block
+    payload.text_block = textBlockPayload(img.text_block)
   }
   try {
-    await projectImages.update(route.params.id, img.id, payload)
+    const { data } = await projectImages.update(route.params.id, img.id, payload)
+    const refreshed = normalizeImage(data)
+    const i = images.value.findIndex((x) => x.id === img.id)
+    if (i !== -1) images.value[i] = refreshed
     toast.success('Contenuto salvato')
   } catch (e) {
     toast.error('Errore salvataggio: ' + (e.response?.data?.message || e.message))
@@ -242,42 +295,140 @@ async function doRemoveImage(img, index) {
   }
 }
 
-// --- Drag (swap via SortableJS Swap plugin) ---
-const imagesListRef = ref(null)
-let sortableInstance = null
+// --- Riordino paragrafi (Sortable per blocco testo) ---
+const paragraphSortables = new Map()
 
-function initSortable() {
-  if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null }
-  if (!imagesListRef.value) return
-  sortableInstance = Sortable.create(imagesListRef.value, {
-    swap: true,
-    swapClass: 'swap-highlight',
+function destroyParagraphSortable(imageId) {
+  const inst = paragraphSortables.get(imageId)
+  if (inst) {
+    inst.destroy()
+    paragraphSortables.delete(imageId)
+  }
+}
+
+function initParagraphSortable(imageId, el) {
+  destroyParagraphSortable(imageId)
+  const inst = Sortable.create(el, {
     animation: 150,
     ghostClass: 'sortable-ghost',
-    handle: '.drag-handle',
-    async onEnd(evt) {
+    handle: '.paragraph-drag-handle',
+    onEnd(evt) {
       const { oldIndex, newIndex } = evt
-      if (oldIndex === newIndex) return
-      const temp = images.value[oldIndex]
-      images.value[oldIndex] = images.value[newIndex]
-      images.value[newIndex] = temp
-      const order = images.value.map((img, i) => ({ id: img.id, order: i }))
-      try {
-        await projectImages.reorder(route.params.id, order)
-        toast.success('Ordine aggiornato')
-      } catch (e) {
-        toast.error('Errore riordino: ' + (e.response?.data?.message || e.message))
-        await load()
-      }
+      if (oldIndex === newIndex || oldIndex == null || newIndex == null) return
+      const img = images.value.find((i) => i.id === imageId)
+      if (!img?.text_block) return
+      const arr = img.text_block.paragraphs
+      const moved = arr.splice(oldIndex, 1)[0]
+      arr.splice(newIndex, 0, moved)
     },
+  })
+  paragraphSortables.set(imageId, inst)
+}
+
+function onParagraphListEl(imageId, el) {
+  if (!el) {
+    destroyParagraphSortable(imageId)
+    return
+  }
+  nextTick(() => initParagraphSortable(imageId, el))
+}
+
+// --- Modale riordino contenuti ---
+const reorderModalOpen = ref(false)
+const reorderModalItems = ref([])
+const reorderModalListRef = ref(null)
+let reorderModalSortable = null
+
+function destroyReorderModalSortable() {
+  if (reorderModalSortable) {
+    reorderModalSortable.destroy()
+    reorderModalSortable = null
+  }
+}
+
+function openReorderModal() {
+  if (!images.value.length) {
+    toast.error('Nessun contenuto da riordinare')
+    return
+  }
+  reorderModalItems.value = [...images.value]
+  reorderModalOpen.value = true
+  openActionsMenuIndex.value = null
+  nextTick(() => {
+    destroyReorderModalSortable()
+    if (!reorderModalListRef.value) return
+    reorderModalSortable = Sortable.create(reorderModalListRef.value, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      handle: '.reorder-modal-drag-handle',
+      onEnd(evt) {
+        const { oldIndex, newIndex } = evt
+        if (oldIndex === newIndex || oldIndex == null || newIndex == null) return
+        const arr = reorderModalItems.value
+        const moved = arr.splice(oldIndex, 1)[0]
+        arr.splice(newIndex, 0, moved)
+      },
+    })
   })
 }
 
-watch(loading, (val) => { if (!val && isEdit.value) nextTick(initSortable) })
-onBeforeUnmount(() => { if (sortableInstance) sortableInstance.destroy() })
+function closeReorderModal() {
+  destroyReorderModalSortable()
+  reorderModalOpen.value = false
+  reorderModalItems.value = []
+}
+
+watch(reorderModalOpen, (open) => {
+  if (!open) destroyReorderModalSortable()
+})
+
+async function applyReorderModal() {
+  try {
+    images.value = [...reorderModalItems.value]
+    await persistOrder()
+    toast.success('Ordine aggiornato')
+    closeReorderModal()
+  } catch (e) {
+    toast.error('Errore riordino: ' + (e.response?.data?.message || e.message))
+    await load()
+    closeReorderModal()
+  }
+}
+
+function reorderPreviewLabel(item) {
+  if (item.type === 'text_image_block') {
+    return item.text_block?.title || 'Blocco testo'
+  }
+  return 'Immagine'
+}
+
+const openActionsMenuIndex = ref(null)
+
+function toggleActionsMenu(index) {
+  openActionsMenuIndex.value = openActionsMenuIndex.value === index ? null : index
+}
+
+watch(loading, (val) => {
+  if (val) {
+    paragraphSortables.forEach((inst) => inst.destroy())
+    paragraphSortables.clear()
+    openActionsMenuIndex.value = null
+  }
+})
+
+onBeforeUnmount(() => {
+  paragraphSortables.forEach((inst) => inst.destroy())
+  paragraphSortables.clear()
+  destroyReorderModalSortable()
+})
 
 function addParagraph(textBlock) {
-  textBlock.paragraphs.push({ title: '', text: '', text_html: '' })
+  textBlock.paragraphs.push({
+    clientKey: crypto.randomUUID(),
+    title: '',
+    text: '',
+    text_html: '',
+  })
 }
 
 function removeParagraph(textBlock, pi) {
@@ -350,22 +501,33 @@ function removeParagraph(textBlock, pi) {
 
       <!-- Images & text blocks (only in edit mode) -->
       <div v-if="isEdit" class="card">
-        <div class="row mb-16">
+        <div class="row mb-16 flex-wrap">
           <h2 class="section-title">Contenuti progetto</h2>
-          <div class="ml-auto row">
-            <button class="btn btn-ghost btn-sm" @click="addImage">+ Immagine</button>
-            <button class="btn btn-primary btn-sm" @click="addTextBlock">+ Blocco testo</button>
+          <div class="ml-auto row flex-wrap gap-sm">
+            <button type="button" class="btn btn-ghost btn-sm" :disabled="!images.length" @click="openReorderModal">Riordina</button>
+            <button type="button" class="btn btn-ghost btn-sm" @click="addImage">+ Immagine</button>
+            <button type="button" class="btn btn-primary btn-sm" @click="addTextBlock">+ Blocco testo</button>
           </div>
         </div>
 
-        <div ref="imagesListRef" class="stack">
+        <div class="stack">
           <div v-for="(img, index) in images" :key="img.id" class="content-block" :class="`content-block--${img.type}`">
             <div class="content-block-header">
-              <span class="drag-handle" title="Trascina">⠿</span>
               <span class="content-type-badge">{{ img.type === 'text_image_block' ? 'Testo + Immagine' : 'Immagine' }}</span>
-              <div class="ml-auto row">
-                <button class="btn btn-sm btn-danger" @click="requestRemoveImage(img, index)">&#10005;</button>
+              <div class="ml-auto row gap-sm">
+                <button type="button" class="btn btn-sm btn-ghost" @click="toggleActionsMenu(index)">
+                  {{ openActionsMenuIndex === index ? 'Chiudi' : 'Azioni' }}
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" @click="requestRemoveImage(img, index)">&#10005;</button>
               </div>
+            </div>
+
+            <div v-if="openActionsMenuIndex === index" class="content-actions-panel">
+              <button type="button" class="btn btn-sm btn-ghost content-actions-panel__btn" @click="openReorderModal">Riordina</button>
+              <button type="button" class="btn btn-sm btn-ghost content-actions-panel__btn" @click="addImageAt(index)">+ Immagine prima</button>
+              <button type="button" class="btn btn-sm btn-ghost content-actions-panel__btn" @click="addImageAt(index + 1)">+ Immagine dopo</button>
+              <button type="button" class="btn btn-sm btn-ghost content-actions-panel__btn" @click="addTextBlockAt(index)">+ Blocco testo prima</button>
+              <button type="button" class="btn btn-sm btn-ghost content-actions-panel__btn" @click="addTextBlockAt(index + 1)">+ Blocco testo dopo</button>
             </div>
 
             <!-- Immagine semplice -->
@@ -431,13 +593,15 @@ function removeParagraph(textBlock, pi) {
               <div class="mt-16">
                 <div class="row mb-8">
                   <label class="label" style="margin:0">Paragrafi</label>
-                  <button class="btn btn-sm btn-ghost ml-auto" @click="addParagraph(img.text_block)">+ Paragrafo</button>
+                  <button type="button" class="btn btn-sm btn-ghost ml-auto" @click="addParagraph(img.text_block)">+ Paragrafo</button>
                 </div>
-                <div v-for="(para, pi) in img.text_block.paragraphs" :key="pi" class="paragraph-block">
-                  <div class="paragraph-header">
-                    <input v-model="para.title" class="input" placeholder="Titolo paragrafo (opzionale)" style="max-width:300px" />
-                    <button class="btn btn-sm btn-danger ml-auto" @click="removeParagraph(img.text_block, pi)">✕</button>
-                  </div>
+                <div :ref="(el) => onParagraphListEl(img.id, el)" class="paragraphs-dnd-list">
+                  <div v-for="(para, pi) in img.text_block.paragraphs" :key="paragraphRowKey(para)" class="paragraph-block">
+                    <div class="paragraph-header">
+                      <span class="paragraph-drag-handle" title="Trascina per riordinare">⠿</span>
+                      <input v-model="para.title" class="input" placeholder="Titolo paragrafo (opzionale)" style="max-width:280px" />
+                      <button type="button" class="btn btn-sm btn-danger ml-auto" @click="removeParagraph(img.text_block, pi)">✕</button>
+                    </div>
                   <div class="grid-2 mt-8">
                     <div>
                       <label class="label">Testo semplice</label>
@@ -450,8 +614,9 @@ function removeParagraph(textBlock, pi) {
                   </div>
                 </div>
               </div>
+              </div>
               <div class="content-block-footer">
-                <button v-if="img.id" class="btn btn-sm btn-primary" @click="updateImage(img, index)">Salva</button>
+                <button v-if="img.id" type="button" class="btn btn-sm btn-primary" @click="updateImage(img, index)">Salva</button>
               </div>
             </div>
           </div>
@@ -480,8 +645,41 @@ function removeParagraph(textBlock, pi) {
             <p>{{ confirmModal.message }}</p>
           </div>
           <div class="confirm-footer">
-            <button class="btn btn-ghost" @click="closeConfirm">No</button>
-            <button class="btn btn-danger" @click="doConfirm">S&igrave;</button>
+            <button type="button" class="btn btn-ghost" @click="closeConfirm">No</button>
+            <button type="button" class="btn btn-danger" @click="doConfirm">S&igrave;</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modale riordino contenuti -->
+    <Teleport to="body">
+      <div v-if="reorderModalOpen" class="modal-backdrop modal-backdrop--reorder" @click.self="closeReorderModal">
+        <div class="reorder-modal" role="dialog" aria-labelledby="reorder-modal-title" @click.stop>
+          <div class="reorder-modal__head">
+            <h3 id="reorder-modal-title" class="reorder-modal__title">Riordina contenuti</h3>
+            <p class="reorder-modal__hint">Trascina le righe usando l&apos;icona a sinistra. Conferma per salvare l&apos;ordine sul server.</p>
+          </div>
+          <div ref="reorderModalListRef" class="reorder-modal-list">
+            <div
+              v-for="item in reorderModalItems"
+              :key="item.id"
+              class="reorder-modal-row"
+            >
+              <span class="reorder-modal-drag-handle" title="Trascina">⠿</span>
+              <div class="reorder-modal-preview">
+                <img v-if="item.src" :src="item.src" alt="" class="reorder-modal-preview__img" />
+                <span v-else class="reorder-modal-placeholder">Anteprima</span>
+              </div>
+              <div class="reorder-modal-meta">
+                <span class="reorder-modal-badge">{{ item.type === 'text_image_block' ? 'Testo + immagine' : 'Immagine' }}</span>
+                <span class="reorder-modal-label">{{ reorderPreviewLabel(item) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="reorder-modal__footer">
+            <button type="button" class="btn btn-ghost" @click="closeReorderModal">Annulla</button>
+            <button type="button" class="btn btn-primary" @click="applyReorderModal">Applica ordine</button>
           </div>
         </div>
       </div>
@@ -490,6 +688,9 @@ function removeParagraph(textBlock, pi) {
 </template>
 
 <style scoped>
+.flex-wrap{flex-wrap:wrap}
+.gap-sm{gap:8px}
+
 .section-title{font-size:16px;font-weight:700}
 .toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500}
 .toggle-row input{width:18px;height:18px;accent-color:var(--primary)}
@@ -497,14 +698,19 @@ function removeParagraph(textBlock, pi) {
 .content-block{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:#fff}
 .content-block--text_image_block{border-color:var(--primary);border-width:2px}
 .content-block-header{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid var(--border)}
+.content-actions-panel{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:hsl(0 0% 97%);border-bottom:1px solid var(--border)}
+.content-actions-panel__btn{white-space:normal;text-align:left}
 .content-type-badge{font-size:12px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.5px}
 .content-block-body{padding:16px}
 
 .color-row{display:flex;align-items:center;gap:8px}
 .color-row input[type="color"]{width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius);padding:2px;cursor:pointer}
 
+.paragraphs-dnd-list{min-height:8px}
 .paragraph-block{border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:#fafafa}
 .paragraph-header{display:flex;align-items:center;gap:8px}
+.paragraph-drag-handle{cursor:grab;user-select:none;color:var(--text-light);font-size:14px;line-height:1;padding:4px}
+.paragraph-drag-handle:active{cursor:grabbing}
 
 .content-block-footer{display:flex;justify-content:flex-end;padding-top:12px;margin-top:12px;border-top:1px solid var(--border)}
 
@@ -513,7 +719,24 @@ function removeParagraph(textBlock, pi) {
 .empty-state{text-align:center;padding:48px;color:var(--text-light);font-size:14px}
 
 .sortable-ghost{opacity:.4}
-.swap-highlight{outline:2px dashed var(--primary);outline-offset:-2px;background:rgba(99,102,241,.06);border-radius:var(--radius)}
+
+.modal-backdrop--reorder{z-index:1001}
+.reorder-modal{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:0 24px 48px rgba(0,0,0,.2);width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.reorder-modal__head{padding:16px 20px;border-bottom:1px solid var(--border)}
+.reorder-modal__title{margin:0 0 8px;font-size:18px;font-weight:700}
+.reorder-modal__hint{margin:0;font-size:13px;color:var(--text-light);line-height:1.45}
+.reorder-modal-list{padding:12px 16px;overflow-y:auto;flex:1;min-height:120px}
+.reorder-modal-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;background:#fff}
+.reorder-modal-row:last-child{margin-bottom:0}
+.reorder-modal-drag-handle{cursor:grab;user-select:none;color:var(--text-light);font-size:16px;line-height:1;flex-shrink:0}
+.reorder-modal-drag-handle:active{cursor:grabbing}
+.reorder-modal-preview{width:56px;height:56px;flex-shrink:0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:hsl(0 0% 96%);display:flex;align-items:center;justify-content:center}
+.reorder-modal-preview__img{width:100%;height:100%;object-fit:cover;display:block}
+.reorder-modal-placeholder{font-size:10px;color:var(--text-light);text-align:center;padding:4px;line-height:1.2}
+.reorder-modal-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.reorder-modal-badge{font-size:11px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.4px}
+.reorder-modal-label{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reorder-modal__footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border)}
 
 .unsaved-badge{font-size:12px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:4px 10px;border-radius:var(--radius);white-space:nowrap}
 
