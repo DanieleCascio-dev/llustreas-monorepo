@@ -410,13 +410,17 @@ function onDragLeave() {
 .ig-post-card {
   position: relative;
   min-width: 0;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  background: #fff;
+  border: 2px solid transparent; /* Restore transparent border */
+  border-radius: 8px; /* Restore border-radius */
+  background: transparent; /* Keep background transparent */
   color: #262626;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  box-shadow: none; /* No default shadow */
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .ig-section--draggable .ig-post-card {
@@ -434,8 +438,8 @@ function onDragLeave() {
 
 @media (hover: hover) {
   .ig-post-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+    transform: scale(1.03); /* Only scale the card */
+    /* Remove box-shadow and border-color from hover */
   }
 }
 

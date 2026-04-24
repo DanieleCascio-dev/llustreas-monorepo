@@ -10,10 +10,16 @@ import GalleryPreview from "../components/GalleryPreview.vue";
 import InstagramCarousel from "../components/InstagramCarousel.vue";
 import AboutMePreview from "../components/AboutMePreview.vue";
 import FullPageLoader from "../components/FullPageLoader.vue";
+import ContactForm from "../components/ContactForm.vue"; // Importa il nuovo componente
 
 const store = useProjectStore()
 const route = useRoute()
 const loading = ref(true)
+
+const emailAddress = computed(() => {
+  const emailParts = ['illust.reas', 'gmail', 'com']
+  return `${emailParts[0]}@${emailParts[1]}.${emailParts[2]}`
+})
 
 function scrollAboutIntoView() {
   if (route.hash !== '#about-me') return
@@ -126,6 +132,7 @@ onBeforeUnmount(() => {
       />
     </div>
     <InstagramCarousel />
+    <ContactForm :email-address="emailAddress" />
   </div>
 </template>
 
