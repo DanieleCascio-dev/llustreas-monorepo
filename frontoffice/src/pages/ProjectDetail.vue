@@ -140,7 +140,7 @@ watch(slug, async () => {
   gap: 1rem;
   width: 100%;
   margin: 32px auto 0;
-  margin-bottom: 5px;
+  margin-bottom: 25px;
 }
 .nav-button {
   display: inline-flex;
