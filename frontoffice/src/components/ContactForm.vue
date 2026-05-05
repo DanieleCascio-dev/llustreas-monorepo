@@ -61,6 +61,7 @@ function sendEmail() {
 </template>
 
 <style scoped lang="scss">
+@use "sass:color";
 @use "../style/partials/variables" as *;
 
 .contact-me-section {
@@ -117,12 +118,12 @@ function sendEmail() {
 
   &:focus {
     outline: none;
-    border-color: darken($text-violet, 10%);
+    border-color: color.adjust($text-violet, $lightness: -10%);
     box-shadow: 0 0 0 3px rgba($text-violet, 0.2);
   }
 
   &::placeholder {
-    color: lighten($text-color, 20%);
+    color: color.adjust($text-color, $lightness: 20%);
   }
 }
 
@@ -132,9 +133,12 @@ textarea.form-control {
 }
 
 .submit-btn {
+  appearance: none;
+  -webkit-appearance: none;
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: transparent;
   background-image: url("../assets/img/backgrounds/SFONDI_PULSANTI_02_VIOLA.svg"); /* Placeholder, use actual image */
   background-size: contain;
   background-repeat: no-repeat;
@@ -143,7 +147,10 @@ textarea.form-control {
   height: 80px;
   color: $bg-white;
   font-family: "Young Serif", serif;
+  padding: 0;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition:
@@ -161,12 +168,20 @@ textarea.form-control {
   @media (hover: hover) {
     &:hover {
       color: $text-violet;
+      background-color: transparent;
       background-image: url("../assets/img/backgrounds/SFONDI_PULSANTI_02_BIANCO.svg"); /* Placeholder, use actual image */
     }
   }
 
   &:active {
+    background-color: transparent;
+    box-shadow: none;
     opacity: 0.85;
+  }
+
+  &:focus {
+    background-color: transparent;
+    box-shadow: none;
   }
 }
 

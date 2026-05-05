@@ -1,33 +1,39 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 
 const props = defineProps({
   projects: { type: Array, required: true },
   forceMode: { type: String, default: null },
-})
+});
 
-const emit = defineEmits(['projectClick'])
+const emit = defineEmits(["projectClick"]);
 
-const isMobile = ref(false)
+const isMobile = ref(false);
 
 function checkMobile() {
-  if (props.forceMode === 'mobile') { isMobile.value = true; return }
-  if (props.forceMode === 'desktop') { isMobile.value = false; return }
-  isMobile.value = window.innerWidth < 768
+  if (props.forceMode === "mobile") {
+    isMobile.value = true;
+    return;
+  }
+  if (props.forceMode === "desktop") {
+    isMobile.value = false;
+    return;
+  }
+  isMobile.value = window.innerWidth < 768;
 }
 
 onMounted(() => {
-  checkMobile()
-  if (!props.forceMode) window.addEventListener('resize', checkMobile)
-})
+  checkMobile();
+  if (!props.forceMode) window.addEventListener("resize", checkMobile);
+});
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkMobile)
-})
+  window.removeEventListener("resize", checkMobile);
+});
 
-watch(() => props.forceMode, checkMobile)
+watch(() => props.forceMode, checkMobile);
 
-const gridCols = computed(() => isMobile.value ? 1 : 3)
+const gridCols = computed(() => (isMobile.value ? 1 : 3));
 </script>
 
 <template>
@@ -51,8 +57,15 @@ const gridCols = computed(() => isMobile.value ? 1 : 3)
         @click="emit('projectClick', project)"
         @keydown.enter="emit('projectClick', project)"
       >
-        <img v-if="project.hero" :src="project.hero" :alt="project.title" loading="lazy" />
-        <div v-else class="pg-item-placeholder">{{ project.title?.[0] || '?' }}</div>
+        <img
+          v-if="project.hero"
+          :src="project.hero"
+          :alt="project.title"
+          loading="lazy"
+        />
+        <div v-else class="pg-item-placeholder">
+          {{ project.title?.[0] || "?" }}
+        </div>
         <div class="pg-label">{{ project.title.toUpperCase() }}</div>
       </div>
     </div>
@@ -137,7 +150,7 @@ const gridCols = computed(() => isMobile.value ? 1 : 3)
 .pg-label {
   text-align: left;
   margin-top: 8px;
-  font-weight: 300;
+  font-weight: 400;
   letter-spacing: 1.6px;
   color: var(--pg-text, #f5f0eb);
 }
