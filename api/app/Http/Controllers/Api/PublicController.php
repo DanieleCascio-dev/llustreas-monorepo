@@ -67,7 +67,7 @@ class PublicController extends Controller
         return response()->json([
             'desktop' => $desktop,
             'mobile' => $mobile,
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function projectsPreview(): JsonResponse

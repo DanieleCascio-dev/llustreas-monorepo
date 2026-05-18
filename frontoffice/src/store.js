@@ -137,7 +137,7 @@ export const useProjectStore = defineStore('projectStore', {
         } else {
           // backward compat: old API returns flat array of 3 columns
           this.columns = normalizeGalleryColumns(data, 3)
-          this.mobileColumns = []
+          this.mobileColumns = normalizeGalleryColumns(data, 2)
         }
         this.columnsLoaded = true
       } catch (e) {

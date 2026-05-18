@@ -6,24 +6,25 @@ import { useProjectStore } from '../store'
 
 const store = useProjectStore()
 
+const mobileQuery = typeof window !== 'undefined'
+  ? window.matchMedia('(max-width: 767px)')
+  : null
+
+const isMobile = ref(mobileQuery?.matches ?? false)
+
+function syncMobileState(event) {
+  isMobile.value = event?.matches ?? mobileQuery?.matches ?? false
+}
+
 onMounted(() => {
   store.fetchGallery()
-  window.addEventListener('resize', onResize)
+  syncMobileState()
+  mobileQuery?.addEventListener('change', syncMobileState)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', onResize)
-  clearTimeout(resizeTimer)
+  mobileQuery?.removeEventListener('change', syncMobileState)
 })
-
-const isMobile = ref(window.innerWidth < 768)
-let resizeTimer = 0
-function onResize() {
-  clearTimeout(resizeTimer)
-  resizeTimer = window.setTimeout(() => {
-    isMobile.value = window.innerWidth < 768
-  }, 150)
-}
 
 const hasMobileLayout = computed(() =>
   store.mobileColumns?.length > 0 &&
