@@ -9,7 +9,7 @@ const fillPhase = ref(false)
 const leaving = ref(false)
 
 const STAGGER = 0.07
-const DRAW_DURATION = 1.3
+const REVEAL_DURATION = 0.42
 const FILL_DURATION = 0.4
 const CURTAIN_DURATION = 800
 
@@ -34,9 +34,6 @@ onMounted(async () => {
   }
 
   paths.forEach((path, i) => {
-    const len = path.getTotalLength()
-    path.style.strokeDasharray = `${len}`
-    path.style.strokeDashoffset = `${len}`
     path.style.animationDelay = `${0.4 + i * STAGGER}s`
   })
 
@@ -46,16 +43,16 @@ onMounted(async () => {
 
   const totalPaths = paths.length
   const lastStart = 0.4 + (totalPaths - 1) * STAGGER
-  const strokeEndMs = (lastStart + DRAW_DURATION) * 1000
+  const revealEndMs = (lastStart + REVEAL_DURATION) * 1000
 
   setTimeout(() => {
     fillPhase.value = true
-  }, strokeEndMs + 50)
+  }, revealEndMs + 50)
 
   setTimeout(() => {
     leaving.value = true
     setTimeout(() => emit('complete'), CURTAIN_DURATION)
-  }, strokeEndMs + 50 + FILL_DURATION * 1000 + 200)
+  }, revealEndMs + 50 + FILL_DURATION * 1000 + 200)
 })
 </script>
 
@@ -117,26 +114,34 @@ onMounted(async () => {
 }
 
 .logo-path {
-  fill: transparent;
-  stroke: var(--brand-violet, #5b3c88);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: var(--brand-violet, #5b3c88);
+  opacity: 0;
+  stroke: transparent;
+  stroke-width: 0;
   fill-rule: evenodd;
-  transition: fill 0.5s ease;
+  transform: translateX(-10px);
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .logo-svg.drawing .logo-path {
-  animation: draw-stroke 1.3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: reveal-fill 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .logo-svg.fill-in .logo-path {
   fill: var(--brand-violet, #5b3c88);
+  opacity: 1;
+  transform: translateX(0);
 }
 
-@keyframes draw-stroke {
+@keyframes reveal-fill {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -158,7 +163,8 @@ onMounted(async () => {
   }
   .logo-svg.drawing .logo-path {
     animation: none;
-    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 </style>

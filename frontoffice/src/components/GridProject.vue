@@ -14,6 +14,8 @@ const isTextImageBlock = (image) => {
   return image && image.type === "textImageBlock";
 };
 
+const hasBlockImage = (image) => Boolean(image?.image?.src);
+
 const simpleImages = computed(() =>
   (props.project?.images || []).filter(img => !isTextImageBlock(img))
 )
@@ -95,12 +97,19 @@ function nextImage() {
             </div>
           </div>
           <div
+            v-if="hasBlockImage(image)"
             class="block-images"
             :class="image.imagePosition === 'bottom-right' ? 'block-images--bottom-right' : ''"
             :style="{ backgroundColor: image.text.backgroundColor }"
           >
             <img :src="image.image.src" :alt="project.title" loading="lazy" />
           </div>
+          <div
+            v-else
+            class="block-images block-images--empty"
+            :style="{ backgroundColor: image.text.backgroundColor }"
+            aria-hidden="true"
+          ></div>
         </div>
 
         <img
@@ -303,6 +312,15 @@ function nextImage() {
     align-self: stretch;
     flex: 1 1 auto;
     min-height: 0;
+  }
+}
+
+.block-images--empty {
+  display: none;
+
+  @media (min-width: 900px) {
+    display: block;
+    flex: 1 1 auto;
   }
 }
 

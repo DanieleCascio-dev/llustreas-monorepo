@@ -3,6 +3,21 @@ import { publicApi } from './services/api'
 
 const pinia = createPinia()
 
+function normalizeGalleryColumns(columns, columnCount) {
+  const normalized = Array.from({ length: columnCount }, () => [])
+  const source = Array.isArray(columns)
+    ? columns
+    : Object.keys(columns || {})
+        .sort((a, b) => Number(a) - Number(b))
+        .map((key) => columns[key])
+
+  source.slice(0, columnCount).forEach((column, index) => {
+    normalized[index] = Array.isArray(column) ? column : Object.values(column || {})
+  })
+
+  return normalized
+}
+
 /**
  * Store principale dell'applicazione.
  * Tutti i dati vengono caricati dall'API Laravel (non più statici).
@@ -117,11 +132,11 @@ export const useProjectStore = defineStore('projectStore', {
       try {
         const { data } = await publicApi.gallery()
         if (data.desktop) {
-          this.columns = data.desktop
-          this.mobileColumns = data.mobile || []
+          this.columns = normalizeGalleryColumns(data.desktop, 3)
+          this.mobileColumns = normalizeGalleryColumns(data.mobile, 2)
         } else {
           // backward compat: old API returns flat array of 3 columns
-          this.columns = data
+          this.columns = normalizeGalleryColumns(data, 3)
           this.mobileColumns = []
         }
         this.columnsLoaded = true

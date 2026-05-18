@@ -14,6 +14,7 @@ const loading = ref(true)
 const uploading = ref(false)
 const showCloudinary = ref(false)
 const cloudinaryTargetCol = ref(0)
+let loadRequestId = 0
 
 const colCount = computed(() => editDevice.value === 'mobile' ? 2 : 3)
 const colIndices = computed(() => Array.from({ length: colCount.value }, (_, i) => i))
@@ -41,20 +42,24 @@ onMounted(() => load())
 watch(editDevice, () => load())
 
 async function load() {
+  const requestId = ++loadRequestId
+  const layout = editDevice.value
   loading.value = true
   try {
-    const { data } = await gallery.list(editDevice.value)
-    images.value = data
+    const { data } = await gallery.list(layout)
+    if (requestId !== loadRequestId || layout !== editDevice.value) return
+    images.value = data.filter(img => (img.layout || 'desktop') === layout)
   } catch {
-    toast.error('Errore caricamento galleria')
+    if (requestId === loadRequestId) toast.error('Errore caricamento galleria')
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
 async function onFileUpload(e, colIndex) {
   const files = Array.from(e.target.files || [])
   if (!files.length) return
+  const layout = editDevice.value
   uploading.value = true
   try {
     for (const file of files) {
@@ -64,9 +69,9 @@ async function onFileUpload(e, colIndex) {
         title: file.name.replace(/\.[^.]+$/, ''),
         column_index: colIndex,
         is_preview: false,
-        layout: editDevice.value,
+        layout,
       })
-      images.value.push(data)
+      if (layout === editDevice.value && (data.layout || 'desktop') === layout) images.value.push(data)
     }
     toast.success('Immagine caricata')
   } catch (err) {
@@ -83,6 +88,7 @@ function openCloudinary(colIndex) {
 }
 
 async function onCloudinarySelect({ url, title }) {
+  const layout = editDevice.value
   uploading.value = true
   try {
     const { data } = await gallery.create({
@@ -90,9 +96,9 @@ async function onCloudinarySelect({ url, title }) {
       title: title || '',
       column_index: cloudinaryTargetCol.value,
       is_preview: false,
-      layout: editDevice.value,
+      layout,
     })
-    images.value.push(data)
+    if (layout === editDevice.value && (data.layout || 'desktop') === layout) images.value.push(data)
     showCloudinary.value = false
     toast.success('Immagine aggiunta')
   } catch (err) {
@@ -133,6 +139,7 @@ async function doRemove(img) {
       src: img.src,
       title: img.title,
       column_index: img.column_index,
+      layout: img.layout || editDevice.value,
       removedAt: Date.now(),
     })
     if (recentlyRemoved.value.length > 20) recentlyRemoved.value.pop()
@@ -154,9 +161,9 @@ async function restoreImage(removed) {
       title: removed.title || '',
       column_index: removed.column_index,
       is_preview: false,
-      layout: editDevice.value,
+      layout: removed.layout || editDevice.value,
     })
-    images.value.push(data)
+    if ((data.layout || 'desktop') === editDevice.value) images.value.push(data)
     recentlyRemoved.value = recentlyRemoved.value.filter(x => x !== removed)
     toast.success('Immagine ripristinata')
   } catch (err) {

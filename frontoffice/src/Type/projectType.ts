@@ -15,7 +15,7 @@ export type Projects = Project[];
 
 export type ProjectImageItem = {
     id: number;
-    src: string;
+    src: string | null;
 };
 
 export type ProjectTextParagraph = {

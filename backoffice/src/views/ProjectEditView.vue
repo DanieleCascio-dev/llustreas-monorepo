@@ -402,6 +402,11 @@ function reorderPreviewLabel(item) {
   return 'Immagine'
 }
 
+function contentTypeLabel(img) {
+  if (img.type !== 'text_image_block') return 'Immagine'
+  return img.src ? 'Testo + Immagine' : 'Solo testo'
+}
+
 const openActionsMenuIndex = ref(null)
 
 function toggleActionsMenu(index) {
@@ -513,7 +518,7 @@ function removeParagraph(textBlock, pi) {
         <div class="stack">
           <div v-for="(img, index) in images" :key="img.id" class="content-block" :class="`content-block--${img.type}`">
             <div class="content-block-header">
-              <span class="content-type-badge">{{ img.type === 'text_image_block' ? 'Testo + Immagine' : 'Immagine' }}</span>
+              <span class="content-type-badge">{{ contentTypeLabel(img) }}</span>
               <div class="ml-auto row gap-sm">
                 <button type="button" class="btn btn-sm btn-ghost" @click="toggleActionsMenu(index)">
                   {{ openActionsMenuIndex === index ? 'Chiudi' : 'Azioni' }}
@@ -584,7 +589,8 @@ function removeParagraph(textBlock, pi) {
                   </div>
                 </div>
                 <div>
-                  <label class="label">Immagine</label>
+                  <label class="label">Immagine opzionale</label>
+                  <p class="field-hint">Lascia vuoto o rimuovi l'immagine per mostrare solo il testo nella colonna selezionata.</p>
                   <ImageUploader v-model="img.src" folder="illustreas/projects" ask-folder folder-root="illustreas/projects" />
                 </div>
               </div>
@@ -672,7 +678,7 @@ function removeParagraph(textBlock, pi) {
                 <span v-else class="reorder-modal-placeholder">Anteprima</span>
               </div>
               <div class="reorder-modal-meta">
-                <span class="reorder-modal-badge">{{ item.type === 'text_image_block' ? 'Testo + immagine' : 'Immagine' }}</span>
+                <span class="reorder-modal-badge">{{ contentTypeLabel(item) }}</span>
                 <span class="reorder-modal-label">{{ reorderPreviewLabel(item) }}</span>
               </div>
             </div>
@@ -701,6 +707,7 @@ function removeParagraph(textBlock, pi) {
 .content-actions-panel{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:hsl(0 0% 97%);border-bottom:1px solid var(--border)}
 .content-actions-panel__btn{white-space:normal;text-align:left}
 .content-type-badge{font-size:12px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.5px}
+.field-hint{margin:0 0 8px;color:var(--text-light);font-size:12px;line-height:1.4}
 .content-block-body{padding:16px}
 
 .color-row{display:flex;align-items:center;gap:8px}

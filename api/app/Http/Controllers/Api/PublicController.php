@@ -60,6 +60,10 @@ class PublicController extends Controller
             $mobile[$i] = $mobileImages->where('column_index', $i)->values()->map($mapFn);
         }
 
+        if ($mobileImages->isEmpty()) {
+            $mobile = $this->deriveGalleryColumns($desktop, 2);
+        }
+
         return response()->json([
             'desktop' => $desktop,
             'mobile' => $mobile,
@@ -137,7 +141,7 @@ class PublicController extends Controller
                         'imagePosition' => $image->textBlock->image_position,
                         'image' => [
                             'id' => $image->id,
-                            'src' => $image->src,
+                            'src' => $image->src ?: null,
                         ],
                         'text' => [
                             'subtitle' => $image->textBlock->subtitle,
@@ -159,5 +163,26 @@ class PublicController extends Controller
                 ];
             }),
         ];
+    }
+
+    private function deriveGalleryColumns(array $sourceColumns, int $columnCount): array
+    {
+        $target = array_fill(0, $columnCount, []);
+        $flat = [];
+        $maxRows = collect($sourceColumns)->map(fn ($col) => count($col))->max() ?? 0;
+
+        for ($row = 0; $row < $maxRows; $row++) {
+            foreach ($sourceColumns as $column) {
+                if (isset($column[$row])) {
+                    $flat[] = $column[$row];
+                }
+            }
+        }
+
+        foreach ($flat as $index => $image) {
+            $target[$index % $columnCount][] = $image;
+        }
+
+        return $target;
     }
 }

@@ -1,37 +1,43 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 
 const props = defineProps({
   projects: { type: Array, required: true },
   forceMode: { type: String, default: null },
-  sectionRadius: { type: String, default: '0' },
-})
+  sectionRadius: { type: String, default: "0" },
+});
 
-const emit = defineEmits(['projectClick'])
+const emit = defineEmits(["projectClick"]);
 
-const isMobile = ref(false)
+const isMobile = ref(false);
 
 function checkMobile() {
-  if (props.forceMode === 'mobile') { isMobile.value = true; return }
-  if (props.forceMode === 'desktop') { isMobile.value = false; return }
-  isMobile.value = window.innerWidth < 768
+  if (props.forceMode === "mobile") {
+    isMobile.value = true;
+    return;
+  }
+  if (props.forceMode === "desktop") {
+    isMobile.value = false;
+    return;
+  }
+  isMobile.value = window.innerWidth < 768;
 }
 
 onMounted(() => {
-  checkMobile()
-  if (!props.forceMode) window.addEventListener('resize', checkMobile)
-})
+  checkMobile();
+  if (!props.forceMode) window.addEventListener("resize", checkMobile);
+});
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkMobile)
-})
+  window.removeEventListener("resize", checkMobile);
+});
 
-watch(() => props.forceMode, checkMobile)
+watch(() => props.forceMode, checkMobile);
 
 const gridCols = computed(() => {
-  if (isMobile.value) return 1
-  return props.projects.length <= 2 ? 2 : 3
-})
+  if (isMobile.value) return 1;
+  return props.projects.length <= 2 ? 2 : 3;
+});
 </script>
 
 <template>
@@ -58,8 +64,15 @@ const gridCols = computed(() => {
         @click="emit('projectClick', project)"
         @keydown.enter="emit('projectClick', project)"
       >
-        <img v-if="project.gif" :src="project.gif" :alt="project.title" loading="lazy" />
-        <div v-else class="pp-item-placeholder">{{ project.title?.[0] || '?' }}</div>
+        <img
+          v-if="project.gif"
+          :src="project.gif"
+          :alt="project.title"
+          loading="lazy"
+        />
+        <div v-else class="pp-item-placeholder">
+          {{ project.title?.[0] || "?" }}
+        </div>
         <div class="pp-overlay">
           <div class="pp-overlay-title">{{ project.title }}</div>
           <div class="pp-overlay-info">{{ project.info }}</div>
@@ -187,7 +200,7 @@ const gridCols = computed(() => {
 
 .pp-overlay-title {
   font-weight: 500;
-  font-family: "Young Serif", serif;
+  font-family: "Assistant", serif;
   text-align: center;
 }
 
@@ -216,9 +229,9 @@ const gridCols = computed(() => {
   left: 0;
   right: 0;
   padding: 10px 12px;
-  background: linear-gradient(transparent, rgba(91, 60, 136, 0.85));
+  background: linear-gradient(transparent, rgba(82, 80, 84, 0.85));
   color: white;
-  font-family: "Young Serif", serif;
+  font-family: "Assistant", serif;
   font-size: 1.1rem;
   pointer-events: none;
 }

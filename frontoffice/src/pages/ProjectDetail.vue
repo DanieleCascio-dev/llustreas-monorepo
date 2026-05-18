@@ -41,9 +41,12 @@ const loading = ref(true);
 // carica progetto dall'API; ricarica se lo slug cambia (navigazione tra progetti)
 async function loadProject() {
   loading.value = true;
-  await projectStore.fetchProjects();
-  await projectStore.fetchProject(slug.value);
-  loading.value = false;
+  try {
+    await projectStore.fetchProjects();
+    await projectStore.fetchProject(slug.value);
+  } finally {
+    loading.value = false;
+  }
 }
 
 function goToProject(targetSlug) {
@@ -69,7 +72,7 @@ watch(slug, async () => {
 
 <template>
   <div v-bind="$attrs">
-    <FullPageLoader v-model="loading" />
+    <FullPageLoader v-model="loading" :lock-scroll="false" />
     <template v-if="project">
       <div class="project-detail__inner">
         <GridProject v-if="project.layout === 'grid'" :project="project" />

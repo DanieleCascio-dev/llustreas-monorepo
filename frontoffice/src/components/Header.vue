@@ -1,80 +1,90 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { computed, ref, watch, nextTick } from "vue";
+import { useRouter, useRoute } from "vue-router";
 
-const router = useRouter()
-const route = useRoute()
+const router = useRouter();
+const route = useRoute();
 
-const navbarOpen = ref(false)
-const activeNav = ref<'home' | 'projects' | 'gallery' | 'about' | ''>('')
+const navbarOpen = ref(false);
+const activeNav = ref<"home" | "projects" | "gallery" | "about" | "">("");
+const isLightHeader = computed(() =>
+  route.matched.some((record) => record.meta?.lightHeader),
+);
 
-const toggleNav = () => { navbarOpen.value = !navbarOpen.value }
-const closeNav = () => { navbarOpen.value = false }
+const toggleNav = () => {
+  navbarOpen.value = !navbarOpen.value;
+};
+const closeNav = () => {
+  navbarOpen.value = false;
+};
 
-let savedScrollY = 0
+let savedScrollY = 0;
 
 watch(navbarOpen, (open) => {
   if (open) {
-    savedScrollY = window.scrollY
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${savedScrollY}px`
-    document.body.style.left = '0'
-    document.body.style.right = '0'
-    document.body.style.overflow = 'hidden'
+    savedScrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.overflow = "hidden";
   } else {
-    document.body.style.position = ''
-    document.body.style.top = ''
-    document.body.style.left = ''
-    document.body.style.right = ''
-    document.body.style.overflow = ''
-    window.scrollTo(0, savedScrollY)
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.overflow = "";
+    window.scrollTo(0, savedScrollY);
   }
-})
+});
 
-watch(() => route.fullPath, () => {
-  closeNav()
-})
+watch(
+  () => route.fullPath,
+  () => {
+    closeNav();
+  },
+);
 
 const smoothScrollTo = (hash: string) => {
-  const el = document.querySelector(hash)
+  const el = document.querySelector(hash);
   if (el) {
-    const headerH = document.querySelector('nav.nav-fixed')?.clientHeight ?? 80
-    const y = el.getBoundingClientRect().top + window.scrollY - headerH
-    window.scrollTo({ top: y, left: 0, behavior: 'smooth' })
+    const headerH = document.querySelector("nav.nav-fixed")?.clientHeight ?? 80;
+    const y = el.getBoundingClientRect().top + window.scrollY - headerH;
+    window.scrollTo({ top: y, left: 0, behavior: "smooth" });
   }
-}
+};
 
 const onNavClickTop = () => {
-  closeNav()
+  closeNav();
   requestAnimationFrame(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
-  })
-}
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  });
+};
 
 const handleGalleryClick = () => {
-  activeNav.value = 'gallery'
-  closeNav()
-}
+  activeNav.value = "gallery";
+  closeNav();
+};
 
 const scrollToAboutMe = async () => {
-  closeNav()
-  if (route.name === 'home') {
-    await nextTick()
-    requestAnimationFrame(() => smoothScrollTo('#about-me'))
+  closeNav();
+  if (route.name === "home") {
+    await nextTick();
+    requestAnimationFrame(() => smoothScrollTo("#about-me"));
   } else {
-    await router.push({ path: '/', hash: '#about-me' })
+    await router.push({ path: "/", hash: "#about-me" });
   }
-  activeNav.value = 'about'
-}
+  activeNav.value = "about";
+};
 
 const handleHomeClick = () => {
-  activeNav.value = 'home'
-  onNavClickTop()
-}
+  activeNav.value = "home";
+  onNavClickTop();
+};
 const handleProjectsClick = () => {
-  activeNav.value = 'projects'
-  onNavClickTop()
-}
+  activeNav.value = "projects";
+  onNavClickTop();
+};
 </script>
 
 <template>
@@ -88,7 +98,11 @@ const handleProjectsClick = () => {
         aria-label="Apri menu"
         @click="toggleNav"
       >
-        <span class="hamburger" :class="{ 'is-open': navbarOpen }" aria-hidden="true">
+        <span
+          class="hamburger"
+          :class="{ 'is-open': navbarOpen }"
+          aria-hidden="true"
+        >
           <span class="bar"></span>
           <span class="bar"></span>
           <span class="bar"></span>
@@ -96,30 +110,80 @@ const handleProjectsClick = () => {
       </button>
 
       <!-- Overlay mobile + link desktop -->
-      <div class="nav-menu" :class="{ 'is-open': navbarOpen }" :aria-hidden="!navbarOpen && 'true'">
+      <div
+        class="nav-menu"
+        :class="{ 'is-open': navbarOpen }"
+        :aria-hidden="!navbarOpen && 'true'"
+      >
         <ul class="nav-list">
-          <li class="nav-item" style="--i:0">
-            <router-link to="/" :class="{ 'is-active': activeNav === 'home' }" class="nav-link" @click="handleHomeClick">HOME</router-link>
+          <li class="nav-item" style="--i: 0">
+            <router-link
+              to="/"
+              :class="{ 'is-active': activeNav === 'home' }"
+              class="nav-link"
+              @click="handleHomeClick"
+              >HOME</router-link
+            >
           </li>
-          <li class="nav-item" style="--i:1">
-            <router-link to="/projects" :class="{ 'is-active': activeNav === 'projects' }" class="nav-link" @click="handleProjectsClick">PROGETTI</router-link>
+          <li class="nav-item" style="--i: 1">
+            <router-link
+              to="/projects"
+              :class="{ 'is-active': activeNav === 'projects' }"
+              class="nav-link"
+              @click="handleProjectsClick"
+              >PROGETTI</router-link
+            >
           </li>
-          <li class="nav-item" style="--i:2">
-            <router-link to="/gallery" :class="{ 'is-active': activeNav === 'gallery' }" class="nav-link" @click="handleGalleryClick">ILLUSTRAZIONI</router-link>
+          <li class="nav-item" style="--i: 2">
+            <router-link
+              to="/gallery"
+              :class="{ 'is-active': activeNav === 'gallery' }"
+              class="nav-link"
+              @click="handleGalleryClick"
+              >ILLUSTRAZIONI</router-link
+            >
           </li>
-          <li class="nav-item" style="--i:3">
-            <a href="#about-me" :class="{ 'is-active': activeNav === 'about' }" class="nav-link" @click.prevent="scrollToAboutMe">CHI SONO</a>
+          <li class="nav-item" style="--i: 3">
+            <a
+              href="#about-me"
+              :class="{ 'is-active': activeNav === 'about' }"
+              class="nav-link"
+              @click.prevent="scrollToAboutMe"
+              >CHI SONO</a
+            >
           </li>
         </ul>
 
-        <div class="nav-social" style="--i:4">
-          <a href="https://www.instagram.com/illust.reas/" target="_blank" rel="noopener noreferrer" class="nav-social-link" aria-label="Instagram">
+        <div
+          class="nav-social"
+          :class="{ 'nav-social--light': isLightHeader }"
+          style="--i: 4"
+        >
+          <a
+            href="https://www.instagram.com/illust.reas/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-social-link"
+            aria-label="Instagram"
+          >
             <img src="../assets/img/icone/instagram.svg" alt="Instagram" />
           </a>
-          <a href="https://www.behance.net/letiziaragione" target="_blank" rel="noopener noreferrer" class="nav-social-link" aria-label="Behance">
+          <a
+            href="https://www.behance.net/letiziaragione"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-social-link"
+            aria-label="Behance"
+          >
             <img src="../assets/img/icone/behance.svg" alt="Behance" />
           </a>
-          <a href="https://www.linkedin.com/in/letizia-ragione/" target="_blank" rel="noopener noreferrer" class="nav-social-link" aria-label="LinkedIn">
+          <a
+            href="https://www.linkedin.com/in/letizia-ragione/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-social-link"
+            aria-label="LinkedIn"
+          >
             <img src="../assets/img/icone/linkedin.svg" alt="LinkedIn" />
           </a>
         </div>
@@ -143,7 +207,8 @@ const handleProjectsClick = () => {
   align-items: center;
   background-color: var(--header-bg);
   transition: background-color 0.35s ease;
-  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0
+    env(safe-area-inset-left, 0);
 
   @media (min-width: 768px) {
     height: 80px;
@@ -211,13 +276,27 @@ const handleProjectsClick = () => {
     top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.hamburger .bar:nth-child(1) { top: 2px; }
-.hamburger .bar:nth-child(2) { top: 10px; }
-.hamburger .bar:nth-child(3) { top: 18px; }
+.hamburger .bar:nth-child(1) {
+  top: 2px;
+}
+.hamburger .bar:nth-child(2) {
+  top: 10px;
+}
+.hamburger .bar:nth-child(3) {
+  top: 18px;
+}
 
-.hamburger.is-open .bar:nth-child(1) { top: 10px; transform: rotate(45deg); }
-.hamburger.is-open .bar:nth-child(2) { opacity: 0; }
-.hamburger.is-open .bar:nth-child(3) { top: 10px; transform: rotate(-45deg); }
+.hamburger.is-open .bar:nth-child(1) {
+  top: 10px;
+  transform: rotate(45deg);
+}
+.hamburger.is-open .bar:nth-child(2) {
+  opacity: 0;
+}
+.hamburger.is-open .bar:nth-child(3) {
+  top: 10px;
+  transform: rotate(-45deg);
+}
 
 /* ── Menu overlay mobile / inline desktop ── */
 .nav-menu {
@@ -233,7 +312,9 @@ const handleProjectsClick = () => {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    visibility 0.15s ease;
 
   &.is-open {
     opacity: 1;
@@ -276,7 +357,9 @@ const handleProjectsClick = () => {
 .nav-item {
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   transition-delay: 0s;
 
   .nav-menu.is-open & {
@@ -299,7 +382,9 @@ const handleProjectsClick = () => {
   margin-top: 36px;
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   transition-delay: 0s;
 
   .nav-menu.is-open & {
@@ -335,6 +420,10 @@ const handleProjectsClick = () => {
     outline-offset: 2px;
     border-radius: 4px;
   }
+}
+
+.nav-social--light .nav-social-link img {
+  filter: brightness(0) saturate(100%) invert(25%) sepia(20%) saturate(2173%) hue-rotate(224deg) brightness(88%) contrast(88%);
 }
 
 /* ── Link ── */
@@ -379,11 +468,17 @@ const handleProjectsClick = () => {
   }
 
   @media (hover: hover) {
-    &:hover::after { transform: scaleX(1); }
-    &.is-active:hover::after { transform: scaleX(0); }
+    &:hover::after {
+      transform: scaleX(1);
+    }
+    &.is-active:hover::after {
+      transform: scaleX(0);
+    }
   }
 
-  &.is-active { font-weight: 600; }
+  &.is-active {
+    font-weight: 600;
+  }
 
   &.router-link-active,
   &.router-link-exact-active {
@@ -396,7 +491,9 @@ const handleProjectsClick = () => {
   }
 
   &.is-active.router-link-active,
-  &.is-active.router-link-exact-active { font-weight: 600; }
+  &.is-active.router-link-exact-active {
+    font-weight: 600;
+  }
 
   @media (min-width: 768px) {
     font-size: 1rem;
@@ -413,5 +510,7 @@ const handleProjectsClick = () => {
 
 <style lang="scss">
 #gallery-preview,
-#about-me { scroll-margin-top: 90px; }
+#about-me {
+  scroll-margin-top: 90px;
+}
 </style>

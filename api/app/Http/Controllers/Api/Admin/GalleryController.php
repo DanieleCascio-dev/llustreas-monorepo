@@ -11,7 +11,10 @@ class GalleryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $layout = $request->query('layout', 'desktop');
+        $data = $request->validate([
+            'layout' => 'sometimes|string|in:desktop,mobile',
+        ]);
+        $layout = $data['layout'] ?? 'desktop';
 
         $images = GalleryImage::where('is_preview', false)
             ->byLayout($layout)
@@ -36,6 +39,7 @@ class GalleryController extends Controller
             'layout' => 'sometimes|string|in:desktop,mobile',
         ]);
 
+        $layout = $data['layout'] ?? 'desktop';
         $data['layout'] = $layout;
 
         $maxOrder = GalleryImage::where('column_index', $data['column_index'])
@@ -95,9 +99,21 @@ class GalleryController extends Controller
             'order.*.order' => 'required|integer',
         ]);
 
+        $layout = $data['layout'] ?? 'desktop';
+        $ids = collect($data['order'])->pluck('id')->unique()->values();
+        $validCount = GalleryImage::whereIn('id', $ids)
+            ->where('is_preview', false)
+            ->where('layout', $layout)
+            ->count();
+
+        if ($validCount !== $ids->count()) {
+            abort(422, 'Le immagini da riordinare non appartengono al layout selezionato');
+        }
+
         foreach ($data['order'] as $item) {
             GalleryImage::where('id', $item['id'])
                 ->where('is_preview', false)
+                ->where('layout', $layout)
                 ->update([
                     'column_index' => $item['column_index'],
                     'order' => $item['order'],

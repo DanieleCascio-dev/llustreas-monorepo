@@ -1,66 +1,68 @@
 <script setup lang="ts">
 /*** COMPONENTE PER LA VISUALIZZAZIONE GRAFICA DI UN PROGETTO A COLONNE ***/
-import { ref, computed } from 'vue'
+import { ref, computed } from "vue";
 import type { ProjectImage, ProjectImageBlock } from "../Type/projectType.js";
-import ImageModal from './ImageModal.vue'
+import ImageModal from "./ImageModal.vue";
 
 const props = defineProps({
   project: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const isTextImageBlock = (image: ProjectImage): image is ProjectImageBlock => {
   return "type" in image && image.type === "textImageBlock";
 };
 
-const simpleImages = computed(() =>
-  (props.project?.images || []).filter((img: ProjectImage) => !isTextImageBlock(img))
-)
+const hasBlockImage = (image: ProjectImageBlock) => Boolean(image.image?.src);
 
-const isModalVisible = ref(false)
-const selectedImage = ref({ src: '', title: '' })
+const simpleImages = computed(() =>
+  (props.project?.images || []).filter(
+    (img: ProjectImage) => !isTextImageBlock(img),
+  ),
+);
+
+const isModalVisible = ref(false);
+const selectedImage = ref({ src: "", title: "" });
 
 function openModal(image: any) {
-  selectedImage.value = { src: image.src, title: '' }
-  isModalVisible.value = true
+  selectedImage.value = { src: image.src, title: "" };
+  isModalVisible.value = true;
 }
 
 function closeModal() {
-  isModalVisible.value = false
-  selectedImage.value = { src: '', title: '' }
+  isModalVisible.value = false;
+  selectedImage.value = { src: "", title: "" };
 }
 
 function currentIndex() {
-  return simpleImages.value.findIndex((i: any) => i.src === selectedImage.value.src)
+  return simpleImages.value.findIndex(
+    (i: any) => i.src === selectedImage.value.src,
+  );
 }
 
 function prevImage() {
-  const list = simpleImages.value
-  if (!list.length) return
-  const idx = currentIndex()
-  const prev = idx <= 0 ? list.length - 1 : idx - 1
-  selectedImage.value = { src: (list[prev] as any).src, title: '' }
+  const list = simpleImages.value;
+  if (!list.length) return;
+  const idx = currentIndex();
+  const prev = idx <= 0 ? list.length - 1 : idx - 1;
+  selectedImage.value = { src: (list[prev] as any).src, title: "" };
 }
 
 function nextImage() {
-  const list = simpleImages.value
-  if (!list.length) return
-  const idx = currentIndex()
-  const next = idx >= list.length - 1 ? 0 : idx + 1
-  selectedImage.value = { src: (list[next] as any).src, title: '' }
+  const list = simpleImages.value;
+  if (!list.length) return;
+  const idx = currentIndex();
+  const next = idx >= list.length - 1 ? 0 : idx + 1;
+  selectedImage.value = { src: (list[next] as any).src, title: "" };
 }
 </script>
 
 <template>
   <div class="project header" v-if="project">
     <div class="image-column">
-      <div
-        v-for="image in project.images"
-        :key="image.id"
-        class="image-item"
-      >
+      <div v-for="image in project.images" :key="image.id" class="image-item">
         <div
           v-if="isTextImageBlock(image)"
           class="text-image-block"
@@ -69,11 +71,18 @@ function nextImage() {
         >
           <div
             class="block-text"
-            :style="{ color: image.text.textColor, backgroundColor: image.text.backgroundColor }"
+            :style="{
+              color: image.text.textColor,
+              backgroundColor: image.text.backgroundColor,
+            }"
           >
             <div class="block-header">
-              <div v-if="image.text.subtitle" class="block-subtitle">{{ image.text.subtitle }}</div>
-              <div class="block-title"><strong>{{ image.text.title }}</strong></div>
+              <div v-if="image.text.subtitle" class="block-subtitle">
+                {{ image.text.subtitle }}
+              </div>
+              <div class="block-title">
+                <strong>{{ image.text.title }}</strong>
+              </div>
             </div>
             <div class="block-paragraphs">
               <div
@@ -84,7 +93,11 @@ function nextImage() {
                 <div v-if="paragraph.title" class="block-paragraph-title">
                   <strong>{{ paragraph.title }}</strong>
                 </div>
-                <div v-if="paragraph.textHtml" class="block-paragraph-text" v-html="paragraph.textHtml"></div>
+                <div
+                  v-if="paragraph.textHtml"
+                  class="block-paragraph-text"
+                  v-html="paragraph.textHtml"
+                ></div>
                 <div v-else class="block-paragraph-text">
                   {{ paragraph.text }}
                 </div>
@@ -92,12 +105,23 @@ function nextImage() {
             </div>
           </div>
           <div
+            v-if="hasBlockImage(image)"
             class="block-images"
-            :class="image.imagePosition === 'bottom-right' ? 'block-images--bottom-right' : ''"
+            :class="
+              image.imagePosition === 'bottom-right'
+                ? 'block-images--bottom-right'
+                : ''
+            "
             :style="{ backgroundColor: image.text.backgroundColor }"
           >
             <img :src="image.image.src" :alt="project.title" loading="lazy" />
           </div>
+          <div
+            v-else
+            class="block-images block-images--empty"
+            :style="{ backgroundColor: image.text.backgroundColor }"
+            aria-hidden="true"
+          ></div>
         </div>
 
         <img
@@ -249,7 +273,8 @@ function nextImage() {
     margin: 0 0 12px;
   }
 
-  :deep(ul), :deep(ol) {
+  :deep(ul),
+  :deep(ol) {
     margin: 0 0 12px;
     padding-left: 20px;
   }
@@ -271,6 +296,15 @@ function nextImage() {
     align-self: stretch;
     flex: 1 1 auto;
     min-height: 0;
+  }
+}
+
+.block-images--empty {
+  display: none;
+
+  @media (min-width: 900px) {
+    display: block;
+    flex: 1 1 auto;
   }
 }
 
