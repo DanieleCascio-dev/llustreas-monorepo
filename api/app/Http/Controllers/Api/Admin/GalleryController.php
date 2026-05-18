@@ -27,7 +27,14 @@ class GalleryController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $layout = $request->input('layout', 'desktop');
+        $request->merge([
+            'layout' => $request->query('layout', $request->input('layout', 'desktop')),
+        ]);
+
+        $layoutData = $request->validate([
+            'layout' => 'sometimes|string|in:desktop,mobile',
+        ]);
+        $layout = $layoutData['layout'] ?? 'desktop';
         $maxCol = $layout === 'mobile' ? 1 : 2;
 
         $data = $request->validate([
@@ -36,11 +43,10 @@ class GalleryController extends Controller
             'column_index' => "required|integer|min:0|max:$maxCol",
             'order' => 'integer',
             'is_preview' => 'boolean',
-            'layout' => 'sometimes|string|in:desktop,mobile',
         ]);
 
-        $layout = $data['layout'] ?? 'desktop';
         $data['layout'] = $layout;
+        $data['is_preview'] = false;
 
         $maxOrder = GalleryImage::where('column_index', $data['column_index'])
             ->where('layout', $layout)

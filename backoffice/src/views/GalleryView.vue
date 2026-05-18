@@ -64,15 +64,15 @@ async function onFileUpload(e, colIndex) {
   try {
     for (const file of files) {
       const url = await uploadImage(file, 'illustreas/gallery')
-      const { data } = await gallery.create({
+      await gallery.create({
         src: url,
         title: file.name.replace(/\.[^.]+$/, ''),
         column_index: colIndex,
         is_preview: false,
         layout,
-      })
-      if (layout === editDevice.value && (data.layout || 'desktop') === layout) images.value.push(data)
+      }, layout)
     }
+    if (layout === editDevice.value) await load()
     toast.success('Immagine caricata')
   } catch (err) {
     toast.error('Errore upload: ' + err.message)
@@ -91,14 +91,14 @@ async function onCloudinarySelect({ url, title }) {
   const layout = editDevice.value
   uploading.value = true
   try {
-    const { data } = await gallery.create({
+    await gallery.create({
       src: url,
       title: title || '',
       column_index: cloudinaryTargetCol.value,
       is_preview: false,
       layout,
-    })
-    if (layout === editDevice.value && (data.layout || 'desktop') === layout) images.value.push(data)
+    }, layout)
+    if (layout === editDevice.value) await load()
     showCloudinary.value = false
     toast.success('Immagine aggiunta')
   } catch (err) {
@@ -155,15 +155,16 @@ const recentlyRemoved = ref([])
 
 async function restoreImage(removed) {
   uploading.value = true
+  const layout = removed.layout || editDevice.value
   try {
-    const { data } = await gallery.create({
+    await gallery.create({
       src: removed.src,
       title: removed.title || '',
       column_index: removed.column_index,
       is_preview: false,
-      layout: removed.layout || editDevice.value,
-    })
-    if ((data.layout || 'desktop') === editDevice.value) images.value.push(data)
+      layout,
+    }, layout)
+    if (layout === editDevice.value) await load()
     recentlyRemoved.value = recentlyRemoved.value.filter(x => x !== removed)
     toast.success('Immagine ripristinata')
   } catch (err) {

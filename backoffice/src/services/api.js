@@ -52,7 +52,7 @@ export const projectImages = {
 
 export const gallery = {
   list: (layout = 'desktop') => api.get('/api/admin/gallery', { params: { layout } }),
-  create: (data) => api.post('/api/admin/gallery', data),
+  create: (data, layout = data.layout || 'desktop') => api.post('/api/admin/gallery', { ...data, layout }, { params: { layout } }),
   update: (id, data) => api.put(`/api/admin/gallery/${id}`, data),
   delete: (id) => api.delete(`/api/admin/gallery/${id}`),
   reorder: (order, layout = 'desktop') => api.put('/api/admin/gallery-reorder', { order, layout }),
