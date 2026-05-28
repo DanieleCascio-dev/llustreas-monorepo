@@ -26,15 +26,27 @@ onBeforeUnmount(() => {
   mobileQuery?.removeEventListener('change', syncMobileState)
 })
 
-const hasMobileLayout = computed(() =>
-  store.mobileColumns?.length > 0 &&
-  store.mobileColumns.some(col => col.length > 0)
-)
+function deriveColumns(sourceColumns, columnCount) {
+  const target = Array.from({ length: columnCount }, () => [])
+  const maxRows = Math.max(0, ...sourceColumns.map(col => col.length))
+  const flat = []
 
-const activeColumns = computed(() => {
-  if (isMobile.value && hasMobileLayout.value) return store.mobileColumns
-  return store.columns
-})
+  for (let row = 0; row < maxRows; row++) {
+    sourceColumns.forEach(col => {
+      if (col[row]) flat.push(col[row])
+    })
+  }
+
+  flat.forEach((image, index) => {
+    target[index % columnCount].push(image)
+  })
+
+  return target
+}
+
+const activeColumns = computed(() =>
+  isMobile.value ? deriveColumns(store.columns, 2) : store.columns
+)
 
 const allImages = computed(() => {
   const cols = activeColumns.value

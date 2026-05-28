@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { gallery } from '../services/api'
 import { uploadImage } from '../services/cloudinary'
 import { useToast } from '../composables/useToast'
@@ -8,7 +8,7 @@ import { MasonryGallery } from '@illustreas/shared-ui'
 
 const toast = useToast()
 
-const editDevice = ref('desktop')
+const previewDevice = ref('desktop')
 const images = ref([])
 const loading = ref(true)
 const uploading = ref(false)
@@ -16,7 +16,7 @@ const showCloudinary = ref(false)
 const cloudinaryTargetCol = ref(0)
 let loadRequestId = 0
 
-const colCount = computed(() => editDevice.value === 'mobile' ? 2 : 3)
+const colCount = computed(() => 3)
 const colIndices = computed(() => Array.from({ length: colCount.value }, (_, i) => i))
 
 const columns = computed(() => {
@@ -39,16 +39,13 @@ const previewColumns = computed(() =>
 
 onMounted(() => load())
 
-watch(editDevice, () => load())
-
 async function load() {
   const requestId = ++loadRequestId
-  const layout = editDevice.value
   loading.value = true
   try {
-    const { data } = await gallery.list(layout)
-    if (requestId !== loadRequestId || layout !== editDevice.value) return
-    images.value = data.filter(img => (img.layout || 'desktop') === layout)
+    const { data } = await gallery.list()
+    if (requestId !== loadRequestId) return
+    images.value = data
   } catch {
     if (requestId === loadRequestId) toast.error('Errore caricamento galleria')
   } finally {
@@ -59,7 +56,6 @@ async function load() {
 async function onFileUpload(e, colIndex) {
   const files = Array.from(e.target.files || [])
   if (!files.length) return
-  const layout = editDevice.value
   uploading.value = true
   try {
     for (const file of files) {
@@ -69,10 +65,9 @@ async function onFileUpload(e, colIndex) {
         title: file.name.replace(/\.[^.]+$/, ''),
         column_index: colIndex,
         is_preview: false,
-        layout,
-      }, layout)
+      })
     }
-    if (layout === editDevice.value) await load()
+    await load()
     toast.success('Immagine caricata')
   } catch (err) {
     toast.error('Errore upload: ' + err.message)
@@ -88,7 +83,6 @@ function openCloudinary(colIndex) {
 }
 
 async function onCloudinarySelect({ url, title }) {
-  const layout = editDevice.value
   uploading.value = true
   try {
     await gallery.create({
@@ -96,9 +90,8 @@ async function onCloudinarySelect({ url, title }) {
       title: title || '',
       column_index: cloudinaryTargetCol.value,
       is_preview: false,
-      layout,
-    }, layout)
-    if (layout === editDevice.value) await load()
+    })
+    await load()
     showCloudinary.value = false
     toast.success('Immagine aggiunta')
   } catch (err) {
@@ -139,7 +132,6 @@ async function doRemove(img) {
       src: img.src,
       title: img.title,
       column_index: img.column_index,
-      layout: img.layout || editDevice.value,
       removedAt: Date.now(),
     })
     if (recentlyRemoved.value.length > 20) recentlyRemoved.value.pop()
@@ -155,16 +147,14 @@ const recentlyRemoved = ref([])
 
 async function restoreImage(removed) {
   uploading.value = true
-  const layout = removed.layout || editDevice.value
   try {
     await gallery.create({
       src: removed.src,
       title: removed.title || '',
       column_index: removed.column_index,
       is_preview: false,
-      layout,
-    }, layout)
-    if (layout === editDevice.value) await load()
+    })
+    await load()
     recentlyRemoved.value = recentlyRemoved.value.filter(x => x !== removed)
     toast.success('Immagine ripristinata')
   } catch (err) {
@@ -235,7 +225,7 @@ async function performSwap(srcId, tgtId) {
         .sort((a, b) => a.order - b.order)
       col.forEach((img, i) => { img.order = i })
       const order = col.map((img, i) => ({ id: img.id, column_index: ci, order: i }))
-      if (order.length) await gallery.reorder(order, editDevice.value)
+      if (order.length) await gallery.reorder(order)
     }
   } catch (e) {
     toast.error('Errore riordino: ' + (e.response?.data?.message || e.message))
@@ -307,7 +297,7 @@ async function handleZoneDrop(e, colIndex) {
         .sort((a, b) => a.order - b.order)
       col.forEach((img, i) => { img.order = i })
       const order = col.map((img, i) => ({ id: img.id, column_index: ci, order: i }))
-      if (order.length) await gallery.reorder(order, editDevice.value)
+      if (order.length) await gallery.reorder(order)
     }
   } catch (e) {
     toast.error('Errore riordino: ' + (e.response?.data?.message || e.message))
@@ -326,26 +316,6 @@ function onItemDragEnd() {
   <div>
     <div class="page-header">
       <h1>Galleria</h1>
-      <div class="device-toggle">
-        <button
-          class="device-btn"
-          :class="{ active: editDevice === 'desktop' }"
-          @click="editDevice = 'desktop'"
-          title="Desktop (3 colonne)" aria-label="Vista desktop"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          <span class="device-label">Desktop</span>
-        </button>
-        <button
-          class="device-btn"
-          :class="{ active: editDevice === 'mobile' }"
-          @click="editDevice = 'mobile'"
-          title="Mobile (2 colonne)" aria-label="Vista mobile"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-          <span class="device-label">Mobile</span>
-        </button>
-      </div>
     </div>
 
     <div v-if="uploading" class="card mb-16" style="text-align:center;padding:12px;color:var(--primary);font-weight:600;font-size:13px">
@@ -359,11 +329,31 @@ function onItemDragEnd() {
       <div v-if="previewColumns.some(c => c.length)" class="fo-preview-wrap">
         <div class="fo-preview-header">
           <h2 class="section-title" style="margin-bottom:0">Anteprima frontoffice</h2>
+          <div class="device-toggle">
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'desktop' }"
+              @click="previewDevice = 'desktop'"
+              title="Desktop (3 colonne)" aria-label="Vista desktop"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <span class="device-label">Desktop</span>
+            </button>
+            <button
+              class="device-btn"
+              :class="{ active: previewDevice === 'mobile' }"
+              @click="previewDevice = 'mobile'"
+              title="Mobile (2 colonne)" aria-label="Vista mobile"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <span class="device-label">Mobile</span>
+            </button>
+          </div>
         </div>
-        <div class="fo-preview-frame" :class="'frame--' + editDevice">
+        <div class="fo-preview-frame" :class="'frame--' + previewDevice">
           <MasonryGallery
             :columns="previewColumns"
-            :force-mode="editDevice"
+            :force-mode="previewDevice"
           />
         </div>
       </div>

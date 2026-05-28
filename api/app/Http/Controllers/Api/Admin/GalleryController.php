@@ -11,13 +11,8 @@ class GalleryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'layout' => 'sometimes|string|in:desktop,mobile',
-        ]);
-        $layout = $data['layout'] ?? 'desktop';
-
         $images = GalleryImage::where('is_preview', false)
-            ->byLayout($layout)
+            ->byLayout('desktop')
             ->orderBy('column_index')
             ->orderBy('order')
             ->get();
@@ -27,29 +22,19 @@ class GalleryController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->merge([
-            'layout' => $request->query('layout', $request->input('layout', 'desktop')),
-        ]);
-
-        $layoutData = $request->validate([
-            'layout' => 'sometimes|string|in:desktop,mobile',
-        ]);
-        $layout = $layoutData['layout'] ?? 'desktop';
-        $maxCol = $layout === 'mobile' ? 1 : 2;
-
         $data = $request->validate([
             'src' => 'required|string',
             'title' => 'nullable|string|max:255',
-            'column_index' => "required|integer|min:0|max:$maxCol",
+            'column_index' => 'required|integer|min:0|max:2',
             'order' => 'integer',
             'is_preview' => 'boolean',
         ]);
 
-        $data['layout'] = $layout;
+        $data['layout'] = 'desktop';
         $data['is_preview'] = false;
 
         $maxOrder = GalleryImage::where('column_index', $data['column_index'])
-            ->where('layout', $layout)
+            ->where('layout', 'desktop')
             ->where('is_preview', false)
             ->max('order') ?? -1;
         $data['order'] = $data['order'] ?? $maxOrder + 1;
@@ -65,13 +50,10 @@ class GalleryController extends Controller
             abort(403, 'Immagine di preview non modificabile da questa route');
         }
 
-        $layout = $gallery->layout ?? 'desktop';
-        $maxCol = $layout === 'mobile' ? 1 : 2;
-
         $data = $request->validate([
             'src' => 'sometimes|string',
             'title' => 'nullable|string|max:255',
-            'column_index' => "sometimes|integer|min:0|max:$maxCol",
+            'column_index' => 'sometimes|integer|min:0|max:2',
             'order' => 'sometimes|integer',
             'is_preview' => 'sometimes|boolean',
         ]);
@@ -94,32 +76,27 @@ class GalleryController extends Controller
 
     public function reorder(Request $request): JsonResponse
     {
-        $layout = $request->input('layout', 'desktop');
-        $maxCol = $layout === 'mobile' ? 1 : 2;
-
         $data = $request->validate([
-            'layout' => 'sometimes|string|in:desktop,mobile',
             'order' => 'required|array',
             'order.*.id' => 'required|exists:gallery_images,id',
-            'order.*.column_index' => "required|integer|min:0|max:$maxCol",
+            'order.*.column_index' => 'required|integer|min:0|max:2',
             'order.*.order' => 'required|integer',
         ]);
 
-        $layout = $data['layout'] ?? 'desktop';
         $ids = collect($data['order'])->pluck('id')->unique()->values();
         $validCount = GalleryImage::whereIn('id', $ids)
             ->where('is_preview', false)
-            ->where('layout', $layout)
+            ->where('layout', 'desktop')
             ->count();
 
         if ($validCount !== $ids->count()) {
-            abort(422, 'Le immagini da riordinare non appartengono al layout selezionato');
+            abort(422, 'Le immagini da riordinare non appartengono alla galleria');
         }
 
         foreach ($data['order'] as $item) {
             GalleryImage::where('id', $item['id'])
                 ->where('is_preview', false)
-                ->where('layout', $layout)
+                ->where('layout', 'desktop')
                 ->update([
                     'column_index' => $item['column_index'],
                     'order' => $item['order'],

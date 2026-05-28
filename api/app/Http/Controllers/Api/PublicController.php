@@ -38,6 +38,7 @@ class PublicController extends Controller
     public function gallery(): JsonResponse
     {
         $images = GalleryImage::where('is_preview', false)
+            ->where('layout', 'desktop')
             ->orderBy('column_index')
             ->orderBy('order')
             ->get();
@@ -49,24 +50,13 @@ class PublicController extends Controller
         ];
 
         $desktop = [];
-        $desktopImages = $images->where('layout', 'desktop');
         for ($i = 0; $i < 3; $i++) {
-            $desktop[$i] = $desktopImages->where('column_index', $i)->values()->map($mapFn);
-        }
-
-        $mobile = [];
-        $mobileImages = $images->where('layout', 'mobile');
-        for ($i = 0; $i < 2; $i++) {
-            $mobile[$i] = $mobileImages->where('column_index', $i)->values()->map($mapFn);
-        }
-
-        if ($mobileImages->isEmpty()) {
-            $mobile = $this->deriveGalleryColumns($desktop, 2);
+            $desktop[$i] = $images->where('column_index', $i)->values()->map($mapFn);
         }
 
         return response()->json([
             'desktop' => $desktop,
-            'mobile' => $mobile,
+            'mobile' => $this->deriveGalleryColumns($desktop, 2),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 

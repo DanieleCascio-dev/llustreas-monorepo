@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const props = defineProps({
   columns: { type: Array, required: true },
@@ -9,6 +9,33 @@ const props = defineProps({
 const emit = defineEmits(['imageClick'])
 
 const isMobile = ref(false)
+
+function deriveColumns(sourceColumns, columnCount) {
+  const target = Array.from({ length: columnCount }, () => [])
+  const maxRows = Math.max(0, ...sourceColumns.map(col => col.length))
+  const flat = []
+
+  for (let row = 0; row < maxRows; row++) {
+    sourceColumns.forEach(col => {
+      if (col[row]) flat.push(col[row])
+    })
+  }
+
+  flat.forEach((image, index) => {
+    target[index % columnCount].push(image)
+  })
+
+  return target
+}
+
+const displayColumns = computed(() => {
+  if (!isMobile.value) return props.columns
+  if (!props.columns.length) return props.columns
+  if (props.columns.length === 2) return props.columns
+  return deriveColumns(props.columns, 2)
+})
+
+const hasImages = computed(() => displayColumns.value.some(col => col.length > 0))
 
 function checkMobile() {
   if (props.forceMode === 'mobile') { isMobile.value = true; return }
@@ -35,8 +62,8 @@ watch(() => props.forceMode, checkMobile)
   >
     <slot name="header"></slot>
 
-    <div v-if="columns.length" class="mg-grid" :class="isMobile ? 'mg-grid--mobile' : 'mg-grid--desktop'">
-      <div class="mg-col" v-for="(col, colIdx) in columns" :key="colIdx">
+    <div v-if="hasImages" class="mg-grid" :class="isMobile ? 'mg-grid--mobile' : 'mg-grid--desktop'">
+      <div class="mg-col" v-for="(col, colIdx) in displayColumns" :key="colIdx">
         <div
           class="mg-item"
           v-for="image in col"
