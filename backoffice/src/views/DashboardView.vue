@@ -24,7 +24,7 @@ onMounted(async () => {
 <template>
   <div>
     <div class="page-header">
-      <h1>Dashboard</h1>
+      <h1>Bentornata Letizia!</h1>
     </div>
 
     <div class="grid-3">
