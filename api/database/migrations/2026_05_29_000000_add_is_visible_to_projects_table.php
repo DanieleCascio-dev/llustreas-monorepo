@@ -8,15 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->boolean('is_visible')->default(true)->after('is_published');
-        });
+        if (!Schema::hasColumn('projects', 'is_visible')) {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->boolean('is_visible')->default(true)->after('is_published');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->dropColumn('is_visible');
-        });
+        if (Schema::hasColumn('projects', 'is_visible')) {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->dropColumn('is_visible');
+            });
+        }
     }
 };
