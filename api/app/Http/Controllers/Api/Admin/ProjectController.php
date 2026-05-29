@@ -31,6 +31,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'info' => 'nullable|string|max:255',
             'is_published' => 'boolean',
+            'is_visible' => 'boolean',
         ]);
 
         if (empty($data['slug'])) {
@@ -64,6 +65,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'info' => 'nullable|string|max:255',
             'is_published' => 'sometimes|boolean',
+            'is_visible' => 'sometimes|boolean',
         ]);
 
         $project->update($data);
@@ -86,6 +88,9 @@ class ProjectController extends Controller
         $clone->title = $project->title . ' (copia)';
         $clone->slug = Str::slug($clone->title) . '-' . Str::random(5);
         $clone->is_published = false;
+        $clone->is_visible = false;
+        $clone->is_featured = false;
+        $clone->featured_order = 0;
         $clone->order = $maxOrder + 1;
         $clone->save();
 

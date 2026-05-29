@@ -15,8 +15,9 @@ class PublicController extends Controller
     public function projects(): JsonResponse
     {
         $projects = Project::published()
+            ->visible()
             ->ordered()
-            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'layout', 'order', 'description', 'info'])
+            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'layout', 'order', 'description', 'info', 'is_visible'])
             ->get();
 
         return response()->json($projects);
@@ -25,6 +26,7 @@ class PublicController extends Controller
     public function project(string $slug): JsonResponse
     {
         $project = Project::published()
+            ->visible()
             ->where('slug', $slug)
             ->with([
                 'images' => fn ($q) => $q->orderBy('order'),
@@ -63,9 +65,10 @@ class PublicController extends Controller
     public function projectsPreview(): JsonResponse
     {
         $featured = Project::where('is_published', true)
+            ->where('is_visible', true)
             ->where('is_featured', true)
             ->orderBy('featured_order')
-            ->select(['id', 'title', 'slug', 'gif_url', 'info'])
+            ->select(['id', 'title', 'slug', 'gif_url', 'info', 'is_visible'])
             ->get();
 
         return response()->json($featured);
@@ -122,6 +125,7 @@ class PublicController extends Controller
             'order' => $project->order,
             'description' => $project->description,
             'info' => $project->info,
+            'is_visible' => $project->is_visible,
             'images' => $project->images->map(function ($image) {
                 if ($image->type === 'text_image_block' && $image->textBlock) {
                     return [

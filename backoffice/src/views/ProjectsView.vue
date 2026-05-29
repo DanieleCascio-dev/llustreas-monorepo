@@ -17,7 +17,7 @@ const searchQuery = ref('')
 
 const previewProjects = computed(() =>
   list.value
-    .filter(p => p.is_published)
+    .filter(p => p.is_published && p.is_visible)
     .map(p => ({
       id: p.id,
       title: p.title,
@@ -35,7 +35,9 @@ async function load() {
   loading.value = true
   try {
     const { data } = await projects.list()
-    list.value = data.sort((a, b) => a.order - b.order)
+    list.value = data
+      .map(p => ({ ...p, is_visible: p.is_visible !== false }))
+      .sort((a, b) => a.order - b.order)
   } catch {
     toast.error('Errore caricamento progetti')
   } finally {
@@ -116,6 +118,23 @@ async function duplicateProject(p) {
     toast.error('Errore duplicazione: ' + (e.response?.data?.message || e.message))
   }
 }
+
+async function toggleVisibility(p) {
+  const previousVisible = p.is_visible !== false
+  const nextVisible = !previousVisible
+  p.is_visible = nextVisible
+  p._visibilitySaving = true
+
+  try {
+    await projects.update(p.id, { is_visible: nextVisible })
+    toast.success(nextVisible ? 'Progetto visibile sul sito' : 'Progetto nascosto dal sito')
+  } catch (e) {
+    p.is_visible = previousVisible
+    toast.error('Errore aggiornamento visibilita: ' + (e.response?.data?.message || e.message))
+  } finally {
+    p._visibilitySaving = false
+  }
+}
 </script>
 
 <template>
@@ -180,11 +199,23 @@ async function duplicateProject(p) {
               <span class="badge" :class="p.is_published ? 'badge--published' : 'badge--draft'">
                 {{ p.is_published ? 'Pubblicato' : 'Bozza' }}
               </span>
+              <span class="badge" :class="p.is_visible ? 'badge--visible' : 'badge--hidden'">
+                {{ p.is_visible ? 'Visibile' : 'Nascosto' }}
+              </span>
               <span class="meta-text">{{ p.images_count || 0 }} immagini</span>
               <span class="meta-text">{{ p.layout }}</span>
             </div>
           </div>
           <div class="project-actions">
+            <label class="visibility-toggle" :title="p.is_visible ? 'Nascondi dal sito' : 'Mostra sul sito'">
+              <input
+                type="checkbox"
+                :checked="p.is_visible"
+                :disabled="p._visibilitySaving"
+                @change="toggleVisibility(p)"
+              />
+              <span>Visibile sul sito</span>
+            </label>
             <button class="btn btn-sm btn-ghost" @click="duplicateProject(p)" title="Duplica progetto" aria-label="Duplica progetto">⧉</button>
             <router-link :to="`/projects/${p.id}`" class="btn btn-sm btn-ghost">Modifica</router-link>
             <button class="btn btn-sm btn-danger" @click="requestDelete(p)">Elimina</button>
@@ -220,11 +251,16 @@ async function duplicateProject(p) {
 .project-title{font-weight:600;font-size:15px}
 .project-meta{display:flex;align-items:center;gap:8px;margin-top:4px}
 .meta-text{font-size:12px;color:var(--text-light)}
-.project-actions{display:flex;gap:8px}
+.project-actions{display:flex;align-items:center;gap:8px}
 
 .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
 .badge--published{background:#d1fae5;color:#065f46}
 .badge--draft{background:#f3f4f6;color:#6b7280}
+.badge--visible{background:#dbeafe;color:#1e40af}
+.badge--hidden{background:#fee2e2;color:#991b1b}
+.visibility-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-light);white-space:nowrap;cursor:pointer}
+.visibility-toggle input{margin:0}
+.visibility-toggle:has(input:disabled){opacity:.6;cursor:wait}
 
 .sortable-ghost{opacity:.4}
 .swap-highlight{outline:2px dashed var(--primary);outline-offset:-2px;background:rgba(99,102,241,.06);border-radius:var(--radius)}

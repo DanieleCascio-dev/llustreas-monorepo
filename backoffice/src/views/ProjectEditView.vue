@@ -27,6 +27,7 @@ const form = ref({
   description: '',
   info: '',
   is_published: false,
+  is_visible: true,
 })
 
 const images = ref([])
@@ -56,6 +57,7 @@ async function load() {
         description: data.description || '',
         info: data.info || '',
         is_published: data.is_published,
+        is_visible: data.is_visible !== false,
       }
       images.value = (data.images || []).map(normalizeImage)
       takeSnapshot()
@@ -500,6 +502,10 @@ function removeParagraph(textBlock, pi) {
           <label class="toggle-row">
             <input type="checkbox" v-model="form.is_published" />
             <span>Pubblicato</span>
+          </label>
+          <label class="toggle-row">
+            <input type="checkbox" v-model="form.is_visible" />
+            <span>Visibile sul sito</span>
           </label>
         </div>
       </div>

@@ -6,6 +6,7 @@ export type Project = {
     order: number;
     gif?: string;
     info?: string;
+    is_visible?: boolean;
     layout: "grid" | "column";
     description?: string;
     images: ProjectImage[];

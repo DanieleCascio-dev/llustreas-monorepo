@@ -12,13 +12,15 @@ const loading = ref(true)
 const previewDevice = ref('desktop')
 
 const previewProjects = computed(() =>
-  featured.value.map(p => ({
-    id: p.id,
-    title: p.title,
-    slug: p.slug,
-    gif: p.gif_url || p.hero_url || '',
-    info: p.info || '',
-  }))
+  featured.value
+    .filter(p => p.is_visible !== false)
+    .map(p => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      gif: p.gif_url || p.hero_url || '',
+      info: p.info || '',
+    }))
 )
 
 onMounted(load)

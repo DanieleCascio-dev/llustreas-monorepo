@@ -77,7 +77,7 @@ export const useProjectStore = defineStore('projectStore', {
       if (this.projectsLoaded) return
       try {
         const { data } = await publicApi.projects()
-        this.projects = data.map((p) => ({
+        this.projects = data.filter((p) => p.is_visible !== false).map((p) => ({
           id: p.id,
           title: p.title,
           slug: p.slug,
@@ -99,7 +99,7 @@ export const useProjectStore = defineStore('projectStore', {
       if (this.featuredLoaded) return
       try {
         const { data } = await publicApi.projectsPreview()
-        this.featuredProjects = data.map((p) => ({
+        this.featuredProjects = data.filter((p) => p.is_visible !== false).map((p) => ({
           id: p.id,
           title: p.title,
           slug: p.slug,
@@ -116,6 +116,12 @@ export const useProjectStore = defineStore('projectStore', {
     async fetchProject(slug) {
       try {
         const { data } = await publicApi.project(slug)
+        if (data.is_visible === false) {
+          this.currentProject = null
+          this.currentProjectSlug = null
+          return
+        }
+
         this.currentProject = data
         this.currentProjectSlug = slug
       } catch (e) {

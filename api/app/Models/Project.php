@@ -20,12 +20,14 @@ class Project extends Model
         'description',
         'info',
         'is_published',
+        'is_visible',
         'is_featured',
         'featured_order',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_visible' => 'boolean',
         'is_featured' => 'boolean',
         'order' => 'integer',
         'featured_order' => 'integer',
@@ -48,6 +50,11 @@ class Project extends Model
     public function scopePublished($query)
     {
         return $query->where('is_published', true);
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->where('is_visible', true);
     }
 
     public function scopeOrdered($query)

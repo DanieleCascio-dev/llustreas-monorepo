@@ -12,8 +12,10 @@ class ProjectPreviewController extends Controller
     public function featured(): JsonResponse
     {
         $featured = Project::where('is_featured', true)
+            ->where('is_published', true)
+            ->where('is_visible', true)
             ->orderBy('featured_order')
-            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'info', 'is_featured', 'featured_order'])
+            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'info', 'is_featured', 'is_visible', 'featured_order'])
             ->get();
 
         return response()->json($featured);
@@ -22,9 +24,10 @@ class ProjectPreviewController extends Controller
     public function available(): JsonResponse
     {
         $all = Project::where('is_published', true)
+            ->where('is_visible', true)
             ->where('is_featured', false)
             ->orderBy('order')
-            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'info'])
+            ->select(['id', 'title', 'slug', 'hero_url', 'gif_url', 'info', 'is_visible'])
             ->get();
 
         return response()->json($all);
@@ -33,6 +36,12 @@ class ProjectPreviewController extends Controller
     public function toggle(Request $request, Project $project): JsonResponse
     {
         if (!$project->is_featured) {
+            if (!$project->is_published || !$project->is_visible) {
+                return response()->json([
+                    'message' => 'Only published and visible projects can be added to the preview.',
+                ], 422);
+            }
+
             $maxOrder = Project::where('is_featured', true)->max('featured_order') ?? -1;
             $project->update([
                 'is_featured' => true,
