@@ -154,7 +154,7 @@ watch(slug, async () => {
   padding: 0 18px;
   border-radius: 50px;
   border: 1px solid rgba(255, 255, 255, 0.6);
-  background-color: var(--brand-violet);
+  background-color: $footer-bg;
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;

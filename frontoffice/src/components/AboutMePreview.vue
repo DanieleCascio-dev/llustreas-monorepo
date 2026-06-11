@@ -69,13 +69,6 @@ const aboutMe = computed(() => store.aboutMe)
   height: auto;
   object-fit: contain;
   border-radius: 12px;
-  transition: transform 0.4s ease;
-
-  @media (hover: hover) {
-    &:hover {
-      transform: scale(1.03);
-    }
-  }
 }
 
 .about-me-title {
